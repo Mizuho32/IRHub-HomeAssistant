@@ -169,6 +169,25 @@ WiFiの方が総合的に優れている**という結論になった。investig
 駆動デバイス向け)が実測で裏付けられた形。**Thread版は技術検証として
 完了とし、IRHub本番運用はWiFi版を継続する**。
 
+### 2026-09-12: WiFi版に戻したらsend_commandが失敗した(HA側の運用メモ)
+
+同じ物理ボードをThread版(`irhub-node-c5-thread`)からWiFi版(`irhub-node-c5`)に
+焼き直した後、`remote.send_command`が
+`Not connected to irhub-node-c5-thread`で失敗する事象が発生。
+
+- entity_id(`remote.irhub_irhub_node_c5`)・`input_text.irhub_target_entity`
+  ともに正しく新しい方(WiFi版)を指していることを確認済みだったにも
+  関わらず発生 → `custom_components/irhub`側のロジックの問題ではなかった。
+- ESPHome統合はMACアドレスで同一物理デバイスと認識するため、`name:`が
+  変わっても同じ設定エントリのまま繋ぎ直しにいくが、
+  `esphome.irhub_node_c5_thread_send_raw`という**古いサービス登録だけが
+  内部にキャッシュされたまま残っていた**(`開発者ツール > アクション`で
+  古い名前のサービスがまだ候補に出ることで確認)。
+- **統合のreloadでは直らず、HA Coreの完全な再起動で解消した**。
+- `ha/README.md`のトラブルシューティングにも追記済み。同じ物理ボードで
+  `name:`(=ESPHomeデバイス名)を変える運用(WiFi⇄Thread切り替え含む)を
+  する場合は、再書き込み後に一度HAを完全再起動する運用にしておくと安全。
+
 ## 動作確認チェックリスト
 
 - [x] C5/C6 × WiFi/Thread 4パターンの`esphome config`バリデーション

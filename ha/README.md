@@ -165,6 +165,17 @@ Developer Tools > アクションからも直接呼べる)。
   (`remote.py`の`_collect_raw_frames`)は短時間(既定0.5秒)以内に届いた
   複数フレームをまとめて1コマンドとして学習・送信するようになっているので、
   該当コマンドを一度削除して学習し直せば直る。
+- 同じ物理ESP32に**別の`name:`で再書き込み**した(例:
+  WiFi版`irhub-node-c5`⇄Thread版`irhub-node-c5-thread`を行き来した)後、
+  `remote.send_command`が`Not connected to <古い方の名前>`で失敗する
+  → ESPHome統合はMACアドレスで同一デバイスと認識して繋ぎ直しにいくが、
+  `esphome.<旧slug>_send_raw`のような**古いサービス登録がキャッシュされた
+  まま残ることがある**(entity_id・`input_text`等HA UI上の見た目は正しく
+  新しい方を指していても、内部のサービス登録だけ古いままというケースを
+  実際に確認した)。統合の再読み込み(reload)では直らず、**HA Coreの
+  完全な再起動**で解消する。`開発者ツール > アクション`で`esphome`と
+  検索し、古い名前のサービス(例: `esphome.irhub_node_c5_thread_send_raw`)
+  がまだ候補に出てくるかで切り分けられる。
 
 ## 既知の制約(現状のスケルトンでの前提)
 

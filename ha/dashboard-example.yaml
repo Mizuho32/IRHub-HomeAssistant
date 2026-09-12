@@ -178,7 +178,7 @@ views:
              | default(integration_entities('irhub') | first, true) %}
           {% set cmds = state_attr(target, 'commands') %}
           {% if cmds %}
-          {{ cmds | join(', ') }}
+          {{ '- ' ~ (cmds | join('\n- ')) }}
           {% else %}
           (まだ何も学習していません)
           {% endif %}

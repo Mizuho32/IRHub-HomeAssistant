@@ -3,6 +3,13 @@
 前提となる調査は [`2026-09-12_IRHub-thread-investigation.md`](./2026-09-12_IRHub-thread-investigation.md) を参照(ESPHomeの`openthread:`コンポーネント調査、既存コンポーネントとの依存関係チェック、Matter経由での参加案の比較検討、TLV取得方法)。
 本ドキュメントはそれを踏まえた**Thread版ノードの実装プラン**。WiFi版の初期実装プランは [`2026-09-10_IRHub-plan.md`](./2026-09-10_IRHub-plan.md) 参照(こちらは無改造で維持する)。
 
+> **結論(2026-09-12)**: 実機検証完了。mDNS自動検出・IR学習送信の動作自体は
+> 確認できたが、消費電力(WiFi比1.8〜2.7倍)・OTA速度(41倍遅い)・レイテンシ
+> いずれもWiFi版に劣る。IRHubのような常時USB給電の据え置き機器には
+> **WiFiの方が総合的に優れている**と判断し、Thread版は技術検証として完了、
+> 本番運用はWiFi版を継続する。詳細は
+> [`2026-09-12_IRHub-thread-impl-notes.md`](./2026-09-12_IRHub-thread-impl-notes.md)参照。
+
 ## 0. 前提・ゴール
 
 - 既存のWiFi版IRHubノード(`irhub-node-c5.yaml`/`irhub-node-c6.yaml`)には一切手を入れない。Thread版は**完全に別バイナリ**として追加する(ESPHomeの`openthread:`が`CONFLICTS_WITH = ["wifi"]`のため同一ファームウェアに同居できない)。

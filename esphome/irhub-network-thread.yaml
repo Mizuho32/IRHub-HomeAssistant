@@ -29,8 +29,16 @@ openthread:
   # (0.12W→0.33W)になることを実機で確認。MTD+poll_periodならポーリング
   # 間隔の間だけ無線を寝かせられるので省電力になるはずだが、HA→ESP32方向の
   # 通信(IR送信コマンド等)は次のポーリングまで最大poll_period分の遅延が
-  # 乗る(SEDと同じ理屈)。poll_period: 1sで様子見。
-  # 前の値(FTD、常時起動・低遅延優先): device_type: FTD (poll_periodなし)
+  # 乗る(SEDと同じ理屈)。
+  #
+  # 実測ログ(詳細: mds/2026-09-12_IRHub-thread-impl-notes.md):
+  #   FTD (poll_periodなし):     0.33W、レイテンシ最小
+  #   MTD poll_period: 1s:       0.22W、レイテンシ明らかに増加
+  #   MTD poll_period: 5s(現在): 検証中(伸ばすほど省電力だが応答はさらに遅くなる想定)
+  #
+  # 常時起動・低遅延優先に戻す場合(元の設定。下のMTD/poll_period行を
+  # 削除してこちらのコメントアウトを外す):
+  # device_type: FTD
   device_type: MTD
-  poll_period: 1s
+  poll_period: 5s
   tlv: !secret thread_dataset_tlv

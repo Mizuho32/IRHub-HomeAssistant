@@ -6,15 +6,19 @@ packages:
 
 substitutions:
   name: "irhub-node-c5"
-  # XIAO ESP32-C5のストラッピングピン(GPIO7,25,26,27,28,MTMS,MTDI)を避けて選定。
-  # XIAO D-pin対応: D0=GPIO1, D1=GPIO0, D4=GPIO23 (いずれも非ストラッピング)
+  # XIAO ESP32-C5のGPIO7はSoC(ESP32-C5)データシート上はストラッピングピン
+  # 扱いだが、XIAOボードのピン説明ではD3に特別な役割は割り当てられておらず、
+  # 実機でも問題なく動作している。過去に見られた再起動ループは電源不足
+  # (USBハブ経由給電時のブラウンアウト)が真因で、ストラッピングピンとは
+  # 無関係だった。
+  # XIAO D-pin対応: D0=GPIO1, D1=GPIO0, D3=GPIO7
   ir_receiver_pin: "GPIO1"    # D0
   ir_transmitter_pin: "GPIO0" # D1
-  status_led_pin: "GPIO23"    # D4
+  status_led_pin: "GPIO7"     # D3
   # I2Cセンサ(ADT7410等)用。空いている非ストラッピングピンを割り当てただけで、
   # XIAOのシルク印刷ピン番号(Dx)との対応は未確認。実配線前にピンアウト図で要確認。
-  i2c_sda_pin: "GPIO2"
-  i2c_scl_pin: "GPIO3"
+  i2c_sda_pin: "GPIO23"
+  i2c_scl_pin: "GPIO24"
 
 esp32:
   board: seeed_xiao_esp32c5

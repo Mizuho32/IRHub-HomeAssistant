@@ -1,0 +1,132 @@
+# IRHub ESPHomeノード 共通設定
+#
+# ボード(esp32:)以外の全設定をここに集約し、チップ別ファイル
+# (irhub-node-c5.yaml / irhub-node-c6.yaml)から `packages:` で読み込む。
+#
+# 想定ハードウェア(適当接続の仮定):
+#   - 赤外線受信モジュール(38kHz, 例: OSRB38C9AA/VS1838B等) -> ir_receiver_pin
+#   - 赤外線LED(トランジスタ/FET駆動, RMT出力) -> ir_transmitter_pin
+#   - ステータスLED(単色, 例: オンボードLEDやGPIO直結LED) -> status_led_pin
+#   下のsubstitutionsはあくまでフォールバック値。実際のピンは
+#   irhub-node-c5.yaml / irhub-node-c6.yaml 側でチップごとに上書きしている
+#   (XIAO ESP32C5/C6はピン番号(GPIOxx)がシルク印刷のD0-D10表記と一致せず、
+#    かつC5とC6でストラッピングピンの位置が異なるため)。
+#   C6のストラッピングピン: GPIO4,5,8,9,15(旧デフォルトのGPIO4/5/8と丸被り
+#   していて、リセット時の再起動ループの原因になっていた)。
+#   C5のストラッピングピン: GPIO7,25,26,27,28,MTMS,MTDI。
+#   新しくピンを変える場合は、使うチップのストラッピングピンと
+#   XIAOのピンアウト図を必ず確認すること。
+#
+# WiFi認証情報の扱い:
+#   バイナリに埋め込まない。`wifi:` にssid/passwordを書かず、
+#   `improv_serial:` でUSBシリアル経由のImprov標準プロビジョニングを使う。
+#   これにより資格情報はコンパイル済みバイナリではなくデバイス上のNVS
+#   (flashのパーティション)に実行時保存される。OTA更新(flash消去なし)でも
+#   保持されるので、WiFi変更のたびに再ビルド・再書き込みは不要。
+#   初回は書き込み後にUSBシリアル接続した状態で、
+#   https://www.improv-wifi.com/serial/ 等からプロビジョニングする想定。
+#
+# 未検証ポイント(実機で要確認):
+#   - pin番号/active-highかlow(inverted)か
+#   - api:services: の `int[]` 引数と remote_transmitter.transmit_raw の型整合
+#   - homeassistant.event: の event_data 値としてカンマ区切り文字列を送る方式で
+#     HA側(custom_components/irhub)が期待通りパースできるか
+#   - improv_serialでのプロビジョニング手順そのもの(実機で未実施)
+
+substitutions:
+  name: "irhub-node"
+  friendly_name: "IRHub"
+  ir_receiver_pin: "GPIO4"
+  ir_transmitter_pin: "GPIO5"
+  status_led_pin: "GPIO8"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+# --- 基本インフラ ---
+wifi:
+  # ssid/passwordは書かない(=バイナリに焼き込まない)。
+  # improv_serial経由でプロビジョニングし、NVSに実行時保存する。
+
+logger:
+  # improv_serialはこのUARTロガー経由でシリアル通信する。
+
+# preferences(flashへの状態保存)のデフォルトは60秒間隔のバッチ書き込み。
+# ソフト処理を挟まないハードリセット(RSTボタン=EN直落とし)だと、直前の
+# トグルがまだflashに書き込まれておらず消えることがあるため即時書き込みに
+# 変更する(0s = 毎ループ、変更があれば即書き込み)。書き込み頻度自体は
+# 低い(LEDトグル・起動カウンタ程度)想定なのでflash摩耗のリスクは小さい。
+preferences:
+  flash_write_interval: 0s
+
+improv_serial:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+  services:
+    # HA側から `esphome.${name}_send_raw` として呼べるカスタムサービス。
+    # 学習済みの生タイミング配列(int配列, us単位, 符号でmark/space)をそのまま送信する。
+    - service: send_raw
+      variables:
+        data: int[]
+      then:
+        - remote_transmitter.transmit_raw:
+            transmitter_id: ir_tx
+            code: !lambda "return data;"
+
+ota:
+  - platform: esphome
+
+# デバッグ用。安定してきたら外してよい。
+web_server:
+  version: 3
+
+# --- 赤外線受信 ---
+remote_receiver:
+  id: ir_rx
+  pin:
+    number: ${ir_receiver_pin}
+    inverted: true
+  dump: raw
+  # 受信した生タイミングをそのままHAのイベントバスへ転送する。
+  # custom_components/irhub 側が `esphome.${name}_ir_raw_received` を
+  # 学習(learn_command)のトリガーとして購読する想定。
+  on_raw:
+    then:
+      - homeassistant.event:
+          event: esphome.${name}_ir_raw_received
+          data:
+            raw: !lambda |-
+              std::string s;
+              for (auto v : x) {
+                if (!s.empty()) s += ",";
+                s += to_string(v);
+              }
+              return s;
+
+# --- 赤外線送信 ---
+remote_transmitter:
+  id: ir_tx
+  pin: ${ir_transmitter_pin}
+  carrier_duty_percent: 50%
+
+# --- ステータスLED ---
+output:
+  - platform: gpio
+    pin: ${status_led_pin}
+    id: status_led_output
+
+light:
+  # 単純なGPIO直結LED(PWM調光なし)なのでbinaryプラットフォームを使う。
+  # 調光したい場合はoutputをledc(PWM)にした上でmonochromaticに変更する。
+  - platform: binary
+    output: status_led_output
+    name: "Status LED"
+    id: status_led
+    # restore_mode省略時のデフォルトはALWAYS_OFFで、再起動のたびに状態が
+    # 揮発する(=OFFに戻る)。前回の状態をNVSから復元するように変更。
+    # (初回起動時など保存済み状態が無ければOFFにフォールバック)
+    restore_mode: RESTORE_DEFAULT_OFF
+    # TODO: 受信中/送信中にblinkさせる等はPhase 2以降で automation として追加

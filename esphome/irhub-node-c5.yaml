@@ -1,0 +1,20 @@
+# XIAO ESP32-C5向けエントリポイント。
+# `esphome run irhub-node-c5.yaml` / `esphome compile irhub-node-c5.yaml` で使う。
+
+packages:
+  common: !include irhub-common.yaml
+
+substitutions:
+  name: "irhub-node-c5"
+  # XIAO ESP32-C5のストラッピングピン(GPIO7,25,26,27,28,MTMS,MTDI)を避けて選定。
+  # XIAO D-pin対応: D0=GPIO1, D1=GPIO0, D4=GPIO23 (いずれも非ストラッピング)
+  ir_receiver_pin: "GPIO1"    # D0
+  ir_transmitter_pin: "GPIO0" # D1
+  status_led_pin: "GPIO23"    # D4
+
+esp32:
+  board: seeed_xiao_esp32c5
+  framework:
+    type: esp-idf
+    # OpenThreadはArduinoコアでは使えずesp-idf限定のため、
+    # 将来Thread対応する前提でesp-idfに固定しておく。

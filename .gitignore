@@ -1,0 +1,8 @@
+*.toml
+*.log
+.*.swp
+
+.platformio/
+
+/.claude/
+/data/

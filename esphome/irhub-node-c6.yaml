@@ -1,0 +1,22 @@
+# XIAO ESP32-C6向けエントリポイント。
+# `esphome run irhub-node-c6.yaml` / `esphome compile irhub-node-c6.yaml` で使う。
+
+packages:
+  common: !include irhub-common.yaml
+
+substitutions:
+  name: "irhub-node-c6"
+  # XIAO ESP32-C6のストラッピングピン(GPIO4,5,8,9,15)を避けて選定。
+  # (共通デフォルトのGPIO4/5/8は全てC6のストラッピングピンで、リセット時の
+  #  再起動ループの原因になっていたため上書きする)
+  # XIAO D-pin対応: D0=GPIO0, D1=GPIO1, D2=GPIO2 (いずれも非ストラッピング)
+  ir_receiver_pin: "GPIO0"    # D0
+  ir_transmitter_pin: "GPIO1" # D1
+  status_led_pin: "GPIO2"     # D2
+
+esp32:
+  board: seeed_xiao_esp32c6
+  framework:
+    type: esp-idf
+    # OpenThreadはArduinoコアでは使えずesp-idf限定のため、
+    # 将来Thread対応する前提でesp-idfに固定しておく。

@@ -95,6 +95,12 @@ IR受信ログが出ている状態(=IR受信自体は動いている)。
 `irhub.rename_command`として追加している(`services.yaml`参照。
 Developer Tools > アクションからも直接呼べる)。
 
+対象デバイス(entity_id)はscriptにハードコードせず、`select.irhub_target_device`
+というドロップダウンから選ぶ方式にしてある。選択肢はHAのJinja関数
+`integration_entities('irhub')`でIRHub統合に属する全remoteエンティティを
+自動列挙しているだけなので、**IRHubノードを複数追加してもダッシュボード・
+スクリプト側は編集不要**(ドロップダウンに自動的に出てくる)。
+
 `input_text:`/`script:`部分は`configuration.yaml`に追記すればよいが、
 `views:`以下(Lovelace)はHAのUIから貼り付ける必要がある。手順:
 

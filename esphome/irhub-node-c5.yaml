@@ -3,6 +3,7 @@
 
 packages:
   common: !include irhub-common.yaml
+  network: !include irhub-network-wifi.yaml
 
 substitutions:
   name: "irhub-node-c5"

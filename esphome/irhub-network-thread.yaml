@@ -1,0 +1,31 @@
+# Threadネットワーク構成(実験版)。
+#
+# irhub-network-wifi.yamlの代わりにこちらをpackages:に含めることで、
+# IRHubノードをWiFiではなくThreadメッシュ経由でHAに接続する。
+# 調査の経緯・トレードオフは mds/2026-09-12_IRHub-thread-investigation.md 参照。
+#
+# 前提:
+#   - `wifi:`とは排他(ESPHome側の制約、CONFLICTS_WITH)。WiFi版ノードとは
+#     別バイナリになる。
+#   - ESP32-C5/C6のみ対応(802.15.4無線が無いチップでは使えない)。
+#   - esp32: framework: esp-idf が必須(Arduinoコア非対応。各ノードYAMLで
+#     既に設定済み)。
+#
+# 認証情報(Operational Dataset)の入手方法:
+#   improv_serialのような実行時プロビジョニング手段が無く、コンパイル時に
+#   secrets.yaml経由で埋め込む(tlv:)。値はHAの
+#   `設定 > システム > ネットワーク > Thread` タブで対象ネットワークの
+#   詳細を開くと出てくる `Active dataset TLVs: ...` をそのままコピーする
+#   (同じ値は `docker exec -it addon_core_openthread_border_router
+#   ot-ctl dataset active -x` でも取得できるが、HAのUIだけで完結するので
+#   SSH/dockerは不要)。
+#
+# network: enable_ipv6はopenthread:の必須要件(final_validateでチェックされる)。
+network:
+  enable_ipv6: true
+
+openthread:
+  # USB給電・常時起動・常時IR受信待ちのノードなので、スリープ運用の
+  # MTDではなく非スリープのFTD(Full Thread Device)一択。
+  device_type: FTD
+  tlv: !secret thread_dataset_tlv

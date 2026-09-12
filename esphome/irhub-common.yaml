@@ -1,7 +1,11 @@
 # IRHub ESPHomeノード 共通設定
 #
-# ボード(esp32:)以外の全設定をここに集約し、チップ別ファイル
-# (irhub-node-c5.yaml / irhub-node-c6.yaml)から `packages:` で読み込む。
+# ボード(esp32:)とネットワーク(wifi: or openthread:)以外の全設定を
+# ここに集約し、チップ別ファイル(irhub-node-c5.yaml / irhub-node-c6.yaml /
+# irhub-node-c5-thread.yaml等)から `packages:` で読み込む。
+# ネットワーク設定は irhub-network-wifi.yaml / irhub-network-thread.yaml に
+# 分離してあり、各ノードYAML側でどちらか一方を選んでincludeする
+# (詳細: mds/2026-09-12_IRHub-thread-investigation.md)。
 #
 # 想定ハードウェア(適当接続の仮定):
 #   - 赤外線受信モジュール(38kHz, 例: OSRB38C9AA/VS1838B等) -> ir_receiver_pin
@@ -17,14 +21,8 @@
 #   新しくピンを変える場合は、使うチップのストラッピングピンと
 #   XIAOのピンアウト図を必ず確認すること。
 #
-# WiFi認証情報の扱い:
-#   バイナリに埋め込まない。`wifi:` にssid/passwordを書かず、
-#   `improv_serial:` でUSBシリアル経由のImprov標準プロビジョニングを使う。
-#   これにより資格情報はコンパイル済みバイナリではなくデバイス上のNVS
-#   (flashのパーティション)に実行時保存される。OTA更新(flash消去なし)でも
-#   保持されるので、WiFi変更のたびに再ビルド・再書き込みは不要。
-#   初回は書き込み後にUSBシリアル接続した状態で、
-#   https://www.improv-wifi.com/serial/ 等からプロビジョニングする想定。
+# ネットワーク認証情報の扱い: irhub-network-wifi.yaml /
+#   irhub-network-thread.yaml のコメント参照。
 #
 # 未検証ポイント(実機で要確認):
 #   - pin番号/active-highかlow(inverted)か
@@ -49,9 +47,9 @@ esphome:
   friendly_name: ${friendly_name}
 
 # --- 基本インフラ ---
-wifi:
-  # ssid/passwordは書かない(=バイナリに焼き込まない)。
-  # improv_serial経由でプロビジョニングし、NVSに実行時保存する。
+# wifi:/improv_serial: または network:/openthread: は
+# irhub-network-wifi.yaml / irhub-network-thread.yaml側で定義する
+# (各ノードYAMLのpackages:でどちらか一方をinclude)。
 
 logger:
   # improv_serialはこのUARTロガー経由でシリアル通信する。
@@ -63,8 +61,6 @@ logger:
 # 低い(LEDトグル・起動カウンタ程度)想定なのでflash摩耗のリスクは小さい。
 preferences:
   flash_write_interval: 0s
-
-improv_serial:
 
 api:
   encryption:

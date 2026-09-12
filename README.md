@@ -51,11 +51,21 @@ bin/          ビルド・書き込み・モニタ・WiFi設定用スクリプ�
 | スクリプト | 内容 |
 | --- | --- |
 | `bin/esphome.sh` | ESPHome CLIラッパー。venv自動構築＋システムのESP-IDF(`/opt/esp-idf5.5.1`)を使う |
-| `bin/build.sh <c5\|c6>` | コンパイルのみ |
-| `bin/flash.sh <c5\|c6> [device]` | 書き込みのみ(pure flash、ビルドしない) |
-| `bin/monitor.sh <c5\|c6> [device]` | シリアルログ監視。切断時に自動再接続、`esphome/monitor-<chip>.log`にも保存 |
+| `bin/build.sh <c5\|c6\|c5-thread\|c6-thread>` | コンパイルのみ |
+| `bin/flash.sh <c5\|c6\|c5-thread\|c6-thread> [device]` | 書き込みのみ(pure flash、ビルドしない) |
+| `bin/monitor.sh <c5\|c6\|c5-thread\|c6-thread> [device]` | シリアルログ監視。切断時に自動再接続、`esphome/monitor-<chip>.log`にも保存 |
 | `bin/erase.sh [device]` | フラッシュ全消去(brownout等でのフラッシュ破損疑い時) |
-| `bin/wifi_setup.sh` | Improv Serial経由でWiFi資格情報を送信 |
+| `bin/wifi_setup.sh` | Improv Serial経由でWiFi資格情報を送信(WiFi版ノードのみ) |
+
+## Thread版ノード(実験)
+
+`-thread`サフィックス付きのYAML(`irhub-node-c5-thread.yaml`等)はWiFiの代わりに
+Thread(802.15.4)でHAに接続する実験版。WiFi版とはESPHome側の制約で同一
+バイナリに共存できないため別ファイルになっている。使う場合は
+`esphome/secrets.yaml`に`thread_dataset_tlv`(HAの`設定 > システム >
+ネットワーク > Thread`タブに出ている`Active dataset TLVs: ...`をコピー)を
+設定してからビルドする。詳細・調査経緯は
+[`mds/2026-09-12_IRHub-thread-investigation.md`](mds/2026-09-12_IRHub-thread-investigation.md)参照。
 
 ## トラブルシューティング
 

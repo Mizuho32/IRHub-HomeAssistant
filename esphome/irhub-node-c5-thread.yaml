@@ -1,0 +1,36 @@
+# XIAO ESP32-C5向け Thread(802.15.4)版エントリポイント(実験版)。
+# `esphome run irhub-node-c5-thread.yaml` / `esphome compile irhub-node-c5-thread.yaml` で使う。
+#
+# irhub-node-c5.yaml(WiFi版)とはネットワーク層(wifi:/improv_serial: vs
+# network:/openthread:)だけが違う。IR送受信・LED・I2Cセンサー等のロジックは
+# 共通(irhub-common.yaml)を無改造で共有する。
+# 詳細・トレードオフ: mds/2026-09-12_IRHub-thread-investigation.md
+#
+# 事前準備: esphome/secrets.yaml に thread_dataset_tlv を設定すること
+# (HAの 設定 > システム > ネットワーク > Thread タブに出ている
+#  `Active dataset TLVs: ...` をコピー。詳細はirhub-network-thread.yaml参照)。
+
+packages:
+  common: !include irhub-common.yaml
+  network: !include irhub-network-thread.yaml
+
+substitutions:
+  # WiFi版ノード(irhub-node-c5)と同時に存在してもHA上で区別できるように
+  # 別名にする。
+  name: "irhub-node-c5-thread"
+  # XIAO ESP32-C5のGPIO7はSoC(ESP32-C5)データシート上はストラッピングピン
+  # 扱いだが、XIAOボードのピン説明ではD3に特別な役割は割り当てられておらず、
+  # 実機でも問題なく動作している(irhub-node-c5.yaml参照)。
+  # XIAO D-pin対応: D0=GPIO1, D1=GPIO0, D3=GPIO7
+  ir_receiver_pin: "GPIO1"    # D0
+  ir_transmitter_pin: "GPIO0" # D1
+  status_led_pin: "GPIO7"     # D3
+  # I2Cセンサ(ADT7410等)用。WiFi版と同じ配線を想定。
+  i2c_sda_pin: "GPIO23"
+  i2c_scl_pin: "GPIO24"
+
+esp32:
+  board: seeed_xiao_esp32c5
+  framework:
+    type: esp-idf
+    # openthread:がesp-idf限定(Arduinoコア非対応)のため必須。

@@ -10,19 +10,20 @@
 # 使い方:
 #   bin/monitor.sh c5                 # 自動検出されたシリアルポートを監視
 #   bin/monitor.sh c5 /dev/ttyACM0    # ポートを明示指定
+#   bin/monitor.sh c5-thread          # Thread版(実験)
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ESPHOME_DIR="$ROOT_DIR/esphome"
 VENV_DIR="$ESPHOME_DIR/.venv"
-CHIP="${1:?usage: $0 <c5|c6> [device]}"
+CHIP="${1:?usage: $0 <c5|c6|c5-thread|c6-thread> [device]}"
 DEVICE="${2:-}"
 
 case "$CHIP" in
-  c5|c6) ;;
+  c5|c6|c5-thread|c6-thread) ;;
   *)
-    echo "error: 第1引数はチップ種別 'c5' か 'c6' を指定してください(渡された値: '$CHIP')" >&2
-    echo "usage: $0 <c5|c6> [device]" >&2
+    echo "error: 第1引数はチップ種別 'c5'/'c6'/'c5-thread'/'c6-thread' を指定してください(渡された値: '$CHIP')" >&2
+    echo "usage: $0 <c5|c6|c5-thread|c6-thread> [device]" >&2
     echo "  例: $0 c5 /dev/ttyACM0" >&2
     exit 1
     ;;

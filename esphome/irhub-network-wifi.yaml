@@ -1,0 +1,18 @@
+# WiFiネットワーク構成(IRHubノードのデフォルト)。
+#
+# WiFi資格情報はバイナリに埋め込まない。`wifi:` にssid/passwordを書かず、
+# `improv_serial:` でUSBシリアル経由のImprov標準プロビジョニングを使う。
+# これにより資格情報はコンパイル済みバイナリではなくデバイス上のNVS
+# (flashのパーティション)に実行時保存される。OTA更新(flash消去なし)でも
+# 保持されるので、WiFi変更のたびに再ビルド・再書き込みは不要。
+# 初回は書き込み後にUSBシリアル接続した状態で `bin/wifi_setup.sh` を使う
+# (または https://www.improv-wifi.com/serial/ 等)。
+#
+# Thread版(irhub-network-thread.yaml)とはESPHome側の制約で同時使用不可
+# (排他)なので、どちらか一方だけを各ノードのpackages:に含めること。
+# 詳細: mds/2026-09-12_IRHub-thread-investigation.md
+wifi:
+  # ssid/passwordは書かない(=バイナリに焼き込まない)。
+  # improv_serial経由でプロビジョニングし、NVSに実行時保存する。
+
+improv_serial:

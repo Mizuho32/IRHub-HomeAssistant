@@ -48,15 +48,48 @@
 - C5/C6両方で`esphome config`(バリデーション)・`bin/build.sh`(実ビルド)を実行し、コンパイル成功を確認済み。**実機確認済み**: `bin/monitor.sh`のログで`Temperature=26.99°C`のような妥当な値が60秒おきに出ることを確認(HA側にもESPHome統合経由でそのまま`sensor.`エンティティとして自動的に見える。IRHubの`custom_components`はremoteドメインのみ扱うので無関係)。
 - **訂正: GPIO7(C5, status_led_pin/D3)はストラッピングピンでも実害なし**。ESP32-C5データシート上はストラッピングピン扱いだが、XIAOボード側のピン説明ではD3に特別な役割は無く、実機でも問題なく動作した。過去のC6での再起動ループはストラッピングピン競合が真因と考えていたが、実際は電源不足(USBハブ経由給電のブラウンアウト)が真因だった可能性が高い(いずれにせよ直接USB給電に変えて解消済み)。
 
+### 2026-09-12: Thread版ノード実装(実験)
+
+詳しい調査は[`2026-09-12_IRHub-thread-investigation.md`](./2026-09-12_IRHub-thread-investigation.md)参照。ここでは実装内容のみ記録。
+
+- `irhub-common.yaml`から`wifi:`/`improv_serial:`を分離し、
+  `irhub-network-wifi.yaml`(既存のWiFi+improv_serial)と
+  `irhub-network-thread.yaml`(新規、`network: enable_ipv6: true` +
+  `openthread: device_type: FTD, tlv: !secret thread_dataset_tlv`)の
+  2ファイルに分割。各ノードYAMLの`packages:`でどちらか一方をincludeする形にした
+  (ESPHome側の`CONFLICTS_WITH = ["wifi"]`制約により、WiFiとThreadは同一
+  バイナリに共存できないため)。
+- `irhub-node-c5-thread.yaml`/`irhub-node-c6-thread.yaml`を新設。ピン配置は
+  対応するWiFi版と同一(IR/LED/I2Cの配線は変えていない、ネットワーク層のみ差し替え)。
+  `name:`はWiFi版と衝突しないよう`irhub-node-c5-thread`のように別名にした。
+- Thread認証情報(Operational Dataset)はimprov_serial相当の実行時プロビジョニング
+  手段が無いため、`secrets.yaml`の`thread_dataset_tlv`にコンパイル時埋め込み。
+  値はHAの`設定 > システム > ネットワーク > Thread`タブに出ている
+  `Active dataset TLVs: ...`をそのままコピーするだけで取得できた
+  (SSH/docker exec/Proxmoxコンソール一切不要だった)。
+- `bin/build.sh`/`flash.sh`/`monitor.sh`のチップ種別バリデーションに
+  `c5-thread`/`c6-thread`を追加。
+- C5/C6のWiFi版・Thread版、計4パターン全て`esphome config`のバリデーションと
+  実ビルド(`bin/build.sh`)に成功(実機書き込み・Thread実接続の確認はまだ)。
+- 検討の結果**やらなかったこと**: 「Matterとして振る舞ってQRでThread参加
+  してから自由に使う」案(過去の`SleepBtn`プロジェクトでMatter over Thread
+  の実績あり)。ESPHomeを完全に手放すことになり、IR送受信・OTA・HA連携を
+  全部手書きC++で再実装するコストが見合わないと判断し不採用
+  (詳細は調査ドキュメントの補足セクション参照)。
+
 ## ディレクトリ/ファイル現況
 
 ```
 esphome/
-  irhub-common.yaml        # 共通設定(WiFi/API/IR受信送信/ステータスLED/I2C+センサ等)
-  irhub-node-c5.yaml        # C5向けエントリポイント(board/framework + ピン上書き)
-  irhub-node-c6.yaml        # C6向けエントリポイント
+  irhub-common.yaml        # 共通設定(API/IR受信送信/ステータスLED/I2C+センサ等。ネットワーク層は含まない)
+  irhub-network-wifi.yaml   # wifi:+improv_serial:(デフォルト)
+  irhub-network-thread.yaml # network:+openthread:(実験版)
+  irhub-node-c5.yaml        # C5向けWiFi版エントリポイント(board/framework + ピン上書き)
+  irhub-node-c6.yaml        # C6向けWiFi版エントリポイント
+  irhub-node-c5-thread.yaml # C5向けThread版エントリポイント(実験)
+  irhub-node-c6-thread.yaml # C6向けThread版エントリポイント(実験)
   external_components/adt7410/  # ADT7410温度センサの自前コンポーネント
-  secrets.yaml.example      # api_encryption_keyのみ
+  secrets.yaml.example      # api_encryption_key, thread_dataset_tlv(Thread版のみ必要)
   .gitignore
 ha/custom_components/irhub/
   manifest.json / const.py / __init__.py / config_flow.py / remote.py

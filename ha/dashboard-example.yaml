@@ -21,9 +21,13 @@
 #      (未選択の場合は最初に見つかったIRHubデバイスが自動的に使われる)。
 #
 # 「コマンド名」欄は学習・送信・削除・リネーム(変更前)の対象名として共通で使う。
-# リネームだけ「新しい名前」欄が別途必要。既知のコマンド一覧は
-# 選択中のremoteエンティティの`commands`属性(custom_components/irhub側で
-# 追加済み)をMarkdownカードで表示する。
+# 送信・削除・リネームのように既存のコマンドを指す場合は、直接入力する
+# 代わりに「学習済みから選ぶ」ドロップダウン(`select.irhub_known_command`、
+# 選択中デバイスの`commands`属性が選択肢)から選ぶと自動で入力される。
+# 新規学習したい場合はこのドロップダウンは使わず、直接「コマンド名」欄に
+# 新しい名前を手入力する。リネームだけ「新しい名前」欄が別途必要。
+# 既知のコマンド一覧は選択中のremoteエンティティの`commands`属性
+# (custom_components/irhub側で追加済み)をMarkdownカードでも表示する。
 # 削除・リネームは custom_components/irhub が追加するカスタムサービス
 # `irhub.delete_command` / `irhub.rename_command` を使う(標準の`remote`
 # ドメインには削除/リネーム機能が無いため)。
@@ -65,6 +69,27 @@ template:
           - service: input_text.set_value
             target:
               entity_id: input_text.irhub_target_entity
+            data:
+              value: "{{ option }}"
+
+      # 選択中デバイスの学習済みコマンド一覧から選ぶドロップダウン。
+      # 選ぶと input_text.irhub_command_name に自動で入る(=送信・削除・
+      # リネーム(変更前)の欄と共通)。新規学習したい場合はこれを使わず
+      # 直接「コマンド名」欄に新しい名前を手入力すればよい。
+      - name: "IRHub Known Command"
+        unique_id: irhub_known_command_select
+        icon: mdi:playlist-check
+        state: "{{ states('input_text.irhub_command_name') }}"
+        options: >-
+          {{ state_attr(
+               states('input_text.irhub_target_entity')
+               | default(integration_entities('irhub') | first, true),
+               'commands'
+             ) | default([]) }}
+        select_option:
+          - service: input_text.set_value
+            target:
+              entity_id: input_text.irhub_command_name
             data:
               value: "{{ option }}"
 
@@ -132,8 +157,10 @@ views:
         entities:
           - entity: select.irhub_target_device
             name: "対象デバイス"
+          - entity: select.irhub_known_command
+            name: "学習済みから選ぶ"
           - entity: input_text.irhub_command_name
-            name: "コマンド名"
+            name: "コマンド名(新規学習 or 上で選択)"
           - entity: input_text.irhub_new_command_name
             name: "新しい名前(リネーム用)"
           - entity: script.irhub_learn_command

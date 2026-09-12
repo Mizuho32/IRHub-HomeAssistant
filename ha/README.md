@@ -84,11 +84,16 @@ IR受信ログが出ている状態(=IR受信自体は動いている)。
 
 信号を追加するたびに開発者ツールを開くのが面倒な場合、
 [`dashboard-example.yaml`](./dashboard-example.yaml) にテキスト入力欄＋
-「学習する」「送信する」ボタンだけの最小ダッシュボード例を用意した。
-学習済みコマンド一覧は`remote`エンティティの`commands`属性
-(`custom_components/irhub`が公開)をMarkdownカードで表示している。
+「学習する」「送信する」「リネームする」「削除する」ボタンだけの
+最小ダッシュボード例を用意した。学習済みコマンド一覧は`remote`エンティティの
+`commands`属性(`custom_components/irhub`が公開)をMarkdownカードで表示している。
 ファイル内のコメントに沿って`configuration.yaml`とダッシュボードYAMLに
 それぞれ該当部分を貼り付け、entity_idを実際の値に置き換えて使う。
+
+削除・リネームは標準の`remote`ドメインには無い機能なので、
+`custom_components/irhub`がカスタムサービス`irhub.delete_command` /
+`irhub.rename_command`として追加している(`services.yaml`参照。
+Developer Tools > アクションからも直接呼べる)。
 
 `input_text:`/`script:`部分は`configuration.yaml`に追記すればよいが、
 `views:`以下(Lovelace)はHAのUIから貼り付ける必要がある。手順:

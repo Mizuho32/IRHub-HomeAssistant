@@ -1,0 +1,38 @@
+delete_command:
+  name: コマンドを削除
+  description: 学習済みのIRコマンドを1つ削除します。
+  target:
+    entity:
+      domain: remote
+      integration: irhub
+  fields:
+    command:
+      name: コマンド名
+      description: 削除するコマンド名(remoteエンティティのcommands属性を参照)。
+      required: true
+      example: "tv_power"
+      selector:
+        text:
+
+rename_command:
+  name: コマンドをリネーム
+  description: 学習済みのIRコマンド名を変更します。
+  target:
+    entity:
+      domain: remote
+      integration: irhub
+  fields:
+    old_name:
+      name: 変更前の名前
+      description: 現在のコマンド名。
+      required: true
+      example: "tv_power"
+      selector:
+        text:
+    new_name:
+      name: 変更後の名前
+      description: 新しいコマンド名(既存の名前と重複不可)。
+      required: true
+      example: "tv_power_new"
+      selector:
+        text:

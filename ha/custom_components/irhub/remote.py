@@ -8,6 +8,9 @@ ESPHome IRHubノード1台につき `remote` エンティティを1つ作る。
   イベントを一定時間待ち受け、最初に届いた生タイミングをコマンド名で保存する。
 - 保存先: HAのStorageヘルパー経由で `.storage/irhub_codes_<device_slug>` に
   JSONとして永続化。ESP32側には何も保存しない。
+- 削除・リネーム: `remote`ドメインに標準の削除/リネーム機能が無いため、
+  カスタムサービス `irhub.delete_command` / `irhub.rename_command` を
+  entity serviceとして追加している(services.yaml参照)。
 """
 from __future__ import annotations
 
@@ -15,9 +18,12 @@ import asyncio
 import logging
 from typing import Any, Iterable
 
+import voluptuous as vol
+
 from homeassistant.components.remote import RemoteEntity, RemoteEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.storage import Store
 
@@ -33,6 +39,9 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+SERVICE_DELETE_COMMAND = "delete_command"
+SERVICE_RENAME_COMMAND = "rename_command"
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -43,6 +52,18 @@ async def async_setup_entry(
     device_slug: str = entry.data[CONF_DEVICE_SLUG]
     store: Store = Store(hass, STORAGE_VERSION, f"{STORAGE_KEY_PREFIX}_{device_slug}")
     async_add_entities([IRHubRemote(device_slug, store)])
+
+    platform = entity_platform.async_get_current_platform()
+    platform.async_register_entity_service(
+        SERVICE_DELETE_COMMAND,
+        {vol.Required("command"): str},
+        "async_delete_command",
+    )
+    platform.async_register_entity_service(
+        SERVICE_RENAME_COMMAND,
+        {vol.Required("old_name"): str, vol.Required("new_name"): str},
+        "async_rename_command",
+    )
 
 
 class IRHubRemote(RemoteEntity):
@@ -125,6 +146,31 @@ class IRHubRemote(RemoteEntity):
                 name,
                 len(raw.split(",")),
             )
+
+    async def async_delete_command(self, command: str) -> None:
+        """Delete a previously-learned command (service: irhub.delete_command)."""
+        if command not in self._codes:
+            _LOGGER.warning("IRHub: '%s' は存在しないので削除できません", command)
+            return
+        del self._codes[command]
+        await self._store.async_save(self._codes)
+        self.async_write_ha_state()
+        _LOGGER.info("IRHub: '%s' を削除しました", command)
+
+    async def async_rename_command(self, old_name: str, new_name: str) -> None:
+        """Rename a previously-learned command (service: irhub.rename_command)."""
+        if old_name not in self._codes:
+            _LOGGER.warning("IRHub: '%s' は存在しないのでリネームできません", old_name)
+            return
+        if new_name in self._codes:
+            _LOGGER.warning(
+                "IRHub: '%s' は既に存在するのでリネームできません(上書き防止)", new_name
+            )
+            return
+        self._codes[new_name] = self._codes.pop(old_name)
+        await self._store.async_save(self._codes)
+        self.async_write_ha_state()
+        _LOGGER.info("IRHub: '%s' を '%s' にリネームしました", old_name, new_name)
 
     async def _await_next_raw_code(self, timeout: int) -> str | None:
         """Wait for the next raw-IR event fired from the ESPHome node."""

@@ -80,6 +80,16 @@ IR受信ログが出ている状態(=IR受信自体は動いている)。
 - **送信**: アクション `remote.send_command` で同じ `entity_id` と
   `command: ["tv_power"]` を指定して実行。IR LEDが光り、家電が反応するか確認。
 
+### 5. (任意) Developer Toolsを使わない軽量ダッシュボード
+
+信号を追加するたびに開発者ツールを開くのが面倒な場合、
+[`dashboard-example.yaml`](./dashboard-example.yaml) にテキスト入力欄＋
+「学習する」「送信する」ボタンだけの最小ダッシュボード例を用意した。
+学習済みコマンド一覧は`remote`エンティティの`commands`属性
+(`custom_components/irhub`が公開)をMarkdownカードで表示している。
+ファイル内のコメントに沿って`configuration.yaml`とダッシュボードYAMLに
+それぞれ該当部分を貼り付け、entity_idを実際の値に置き換えて使う。
+
 ## トラブルシューティング
 
 - `Home Assistant event '...' dropped; no client connected` が出続ける

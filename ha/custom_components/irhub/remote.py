@@ -66,10 +66,16 @@ class IRHubRemote(RemoteEntity):
         # device_slugにハイフンが含まれる場合はここで変換する。
         self._send_service = f"{device_slug.replace('-', '_')}{SERVICE_SEND_RAW_SUFFIX}"
 
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose the list of learned command names for dashboards/scripts."""
+        return {"commands": sorted(self._codes)}
+
     async def async_added_to_hass(self) -> None:
         """Load previously learned codes from storage."""
         data = await self._store.async_load()
         self._codes = data or {}
+        self.async_write_ha_state()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         self._attr_is_on = True
@@ -113,6 +119,7 @@ class IRHubRemote(RemoteEntity):
                 )
             self._codes[name] = raw
             await self._store.async_save(self._codes)
+            self.async_write_ha_state()  # commands属性(ダッシュボードのドロップダウン等)を更新
             _LOGGER.info(
                 "IRHub: '%s' を学習・保存しました(%d pulses)",
                 name,

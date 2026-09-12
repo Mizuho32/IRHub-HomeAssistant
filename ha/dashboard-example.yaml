@@ -1,0 +1,72 @@
+# IRHub 用の軽量ダッシュボード例
+#
+# Developer Toolsを使わずに「新しい信号を学習する」「学習済みの信号を送る」を
+# ダッシュボードから行えるようにするための最小構成。
+#
+# 使い方:
+#   1. 下記の`input_text:`と`script:`セクションを configuration.yaml に追記
+#      するか、Settings > Devices & Services > Helpers / Automations & Scenes >
+#      Scripts からGUIで同等のものを作成する。
+#   2. `remote.irhub_irhub_node_c5` の部分を実際のentity_idに置き換える
+#      (Developer Tools > 状態 で `remote.irhub_` で検索すると確認できる)。
+#   3. 一番下の `views:` 以下をダッシュボードに追加する
+#      (既存ダッシュボードの編集 > 右上メニュー > YAMLを編集、で貼り付けるか、
+#      新しいダッシュボードを「YAMLで編集」モードで作る)。
+#
+# 学習も送信も同じテキスト欄(input_text)にコマンド名を入れて、それぞれの
+# ボタン(スクリプト)を押すだけにしてある。既知のコマンド一覧は
+# remoteエンティティの`commands`属性(custom_components/irhub側で追加済み)を
+# Markdownカードで表示することで、「何と打てばいいか」を確認できるようにしている。
+
+# --- configuration.yaml に追記するもの (helpers) ---
+input_text:
+  irhub_command_name:
+    name: "IRHub コマンド名"
+    max: 50
+
+# --- configuration.yaml に追記するもの (scripts) ---
+script:
+  irhub_learn_command:
+    alias: "IRHub: 学習する"
+    icon: mdi:remote-tv
+    sequence:
+      - service: remote.learn_command
+        target:
+          entity_id: remote.irhub_irhub_node_c5  # ← 実際のentity_idに置き換え
+        data:
+          command: "{{ states('input_text.irhub_command_name') }}"
+          timeout: 15
+
+  irhub_send_command:
+    alias: "IRHub: 送信する"
+    icon: mdi:remote
+    sequence:
+      - service: remote.send_command
+        target:
+          entity_id: remote.irhub_irhub_node_c5  # ← 実際のentity_idに置き換え
+        data:
+          command: "{{ states('input_text.irhub_command_name') }}"
+
+# --- ダッシュボードのビューに追加するもの (Lovelace) ---
+views:
+  - title: IRHub
+    path: irhub
+    cards:
+      - type: entities
+        title: IRHub 操作
+        entities:
+          - entity: input_text.irhub_command_name
+            name: "コマンド名"
+          - entity: script.irhub_learn_command
+            name: "学習する(15秒以内にリモコンを押す)"
+          - entity: script.irhub_send_command
+            name: "送信する"
+      - type: markdown
+        title: 学習済みコマンド一覧
+        content: >
+          {% set cmds = state_attr('remote.irhub_irhub_node_c5', 'commands') %}
+          {% if cmds %}
+          {{ cmds | join(', ') }}
+          {% else %}
+          (まだ何も学習していません)
+          {% endif %}

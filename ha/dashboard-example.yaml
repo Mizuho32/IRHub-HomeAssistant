@@ -45,9 +45,18 @@ input_text:
 # 選択状態自体はinput_text.irhub_target_entityに保存する
 # (input_selectだと選択肢を動的に増減させるのに別途automationが要るため、
 #  常に最新のIRHub一覧を出せるtemplate selectを使っている)。
+#
+# 注意: input_text/scriptと違い、templateエンティティのentity_idは
+# YAMLのキーではなく`name:`から自動生成される。日本語名を使うと
+# HAのローマ字化(slugify)がおかしな変換をすることがある
+# (例: 「対象デバイス」→ `dui_xiang_tehaisu` のような中国語ピンイン風の
+# 文字列になり、下のダッシュボードカードが参照する`select.irhub_target_device`
+# と一致しなくなる)。そのため`name:`は英語にしておく。
+# (表示名を日本語にしたい場合は、作成後にUI側でエンティティ名だけ
+# 変更する分には問題ない。ズレるのはentity_id生成時だけ)
 template:
   - select:
-      - name: "IRHub 対象デバイス"
+      - name: "IRHub Target Device"
         unique_id: irhub_target_device_select
         icon: mdi:remote
         state: "{{ states('input_text.irhub_target_entity') }}"

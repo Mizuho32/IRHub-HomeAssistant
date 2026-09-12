@@ -25,7 +25,12 @@ network:
   enable_ipv6: true
 
 openthread:
-  # USB給電・常時起動・常時IR受信待ちのノードなので、スリープ運用の
-  # MTDではなく非スリープのFTD(Full Thread Device)一択。
-  device_type: FTD
+  # 実験: FTD(常時RX、無線が眠れない)だと消費電力がWiFi版の約2.7倍
+  # (0.12W→0.33W)になることを実機で確認。MTD+poll_periodならポーリング
+  # 間隔の間だけ無線を寝かせられるので省電力になるはずだが、HA→ESP32方向の
+  # 通信(IR送信コマンド等)は次のポーリングまで最大poll_period分の遅延が
+  # 乗る(SEDと同じ理屈)。poll_period: 1sで様子見。
+  # 前の値(FTD、常時起動・低遅延優先): device_type: FTD (poll_periodなし)
+  device_type: MTD
+  poll_period: 1s
   tlv: !secret thread_dataset_tlv

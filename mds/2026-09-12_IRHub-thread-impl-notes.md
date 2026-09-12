@@ -94,15 +94,47 @@
 Phase T3(将来対応)に位置づけて保留。複数台運用や鍵ローテーションの
 必要が実際に出てから着手する。
 
+### 2026-09-12: 実機確認結果(mDNS自動検出・消費電力・OTA速度)
+
+- **mDNS自動検出**: 設定変更・再登録一切無しでHAから即座に認識され、
+  リモコン操作も動作。SRP + OTBRのAdvertising Proxyによる橋渡しが
+  設計通り機能した(investigation.md参照)。IPアドレスが変わっても
+  再登録が要らない理由: HAのESPHome統合は接続識別にMACアドレス由来の
+  `unique_id`を使い、接続先自体もIPではなく`<name>.local`という
+  ホスト名で管理している。名前解決さえ通ればアドレスの変化は透過的に
+  吸収される(WiFi版のDHCPアドレス変化と同じ理屈)。
+- **消費電力**: WiFi版0.12W → Thread版(FTD)0.33Wと約2.7倍に増加。
+  原因はFTDが仕様上スリープしない(常時RX)ため。`device_type: MTD` +
+  `poll_period: 1s`に変更して再検証中(`irhub-network-thread.yaml`)。
+  トレードオフとしてHA→ESP32方向の通信に最大poll_period分の遅延が
+  乗る(SEDと同じ理屈)。
+- **OTA速度が激遅(実測)**: WiFi版のOTAが3.6秒に対し、Thread版は147秒
+  (約41倍)。OTA対象バイナリ(`irhub-node-c5-thread.bin`、OTA用)は
+  883,840バイトなので、実効スループットは
+  `883,840 byte × 8 bit / 147s ≈ 48kbps`。
+  当初「OTBRのRCP-UART速度(460800bps)で律速されているのでは」という
+  仮説が出たが、457800bpsはおろか115200bpsのUARTでも48kbpsより
+  十分速いため、**UARTは律速点ではない**と判断。真因は802.15.4の
+  生PHYレート自体が250kbpsしか無く(WiFiの数十〜数百Mbpsと3〜4桁違う)、
+  さらに6LoWPANフラグメンテーション(IPv6パケットが802.15.4の最大フレーム長
+  127byteを超えるため必須)+CSMA/CAバックオフ+ACK待ち+ESPHome OTA自体の
+  チャンク毎応答待ちプロトコルのオーバーヘッドが重なった結果と考えられる
+  (250kbps理論値に対し実効効率約19%は、この手のオーバーヘッドを踏まえると
+  典型的な数字)。ZigbeeやThreadのOTA更新が総じて遅いことの一般的な理由と
+  合致しており、異常ではない。
+  - 実用上の指針: 物理アクセスできる場合はUSBシリアルで焼く。Thread OTAは
+    「物理アクセスできない時の非常手段」という位置づけが妥当。
+
 ## 動作確認チェックリスト
 
 - [x] C5/C6 × WiFi/Thread 4パターンの`esphome config`バリデーション
 - [x] C5/C6 × WiFi/Thread 4パターンの実ビルド(`bin/build.sh`、ダミーTLV)
-- [ ] 実際のOperational Dataset TLVでの実機書き込み・起動確認
-- [ ] Threadネットワークへの参加確認(起動ログでrole変化を確認)
-- [ ] HAのESPHome統合による自動検出(mDNS/SRP経由)
-- [ ] IR学習・送信のThread経由End-to-End動作確認
-- [ ] WiFi版とのレイテンシ比較
+- [x] 実際のOperational Dataset TLVでの実機書き込み・起動確認(C5)
+- [x] HAのESPHome統合による自動検出(mDNS/SRP経由。設定変更・再登録不要で即認識)
+- [x] IR学習・送信のThread経由End-to-End動作確認(リモコン操作成功)
+- [x] 消費電力の実測比較(WiFi 0.12W → Thread FTD 0.33W。原因はFTDの非スリープ仕様)
+- [x] OTA速度の実測比較(WiFi 3.6秒 → Thread 147秒。802.15.4の帯域制約が原因)
+- [ ] MTD + poll_period化での消費電力・レイテンシ再検証(進行中)
 - [ ] 「Thread版improv_serial」(UARTでの鍵アップロード)の実装
 
 ## オープンなissue/今後の検討事項

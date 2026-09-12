@@ -13,6 +13,10 @@ substitutions:
   ir_receiver_pin: "GPIO0"    # D0
   ir_transmitter_pin: "GPIO1" # D1
   status_led_pin: "GPIO2"     # D2
+  # I2Cセンサ(ADT7410等)用。空いている非ストラッピングピンを割り当てただけで、
+  # XIAOのシルク印刷ピン番号(Dx)との対応は未確認。実配線前にピンアウト図で要確認。
+  i2c_sda_pin: "GPIO19"
+  i2c_scl_pin: "GPIO20"
 
 esp32:
   board: seeed_xiao_esp32c6

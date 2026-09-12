@@ -37,6 +37,15 @@ bin/          ビルド・書き込み・モニタ・WiFi設定用スクリプ�
    → [`ha/README.md`](ha/README.md) を参照。ESPHome統合の追加、
    `custom_components/irhub`の配置、学習・送信のテスト手順を記載。
 
+## センサ拡張(I2C/SPI)
+
+`esphome/irhub-common.yaml`に`i2c:`バスを用意済みで、ADT7410(高精度温度センサ、
+`esphome/external_components/adt7410/`に自前実装、ESPHome標準未収録のため)を
+実装例として繋いである。I2Cはアドレスさえ被らなければ1本のバスに何個でも
+デバイスを追加できるので、他のI2Cセンサを足す場合は`irhub-common.yaml`の
+`sensor:`リストに項目を追記するだけでよい。SPIデバイスを足す場合はCLK/MOSI/MISOは
+共有できるが、デバイスごとにCS(チップセレクト)ピンが1本ずつ追加で必要になる。
+
 ## bin/ スクリプト一覧
 
 | スクリプト | 内容 |

@@ -39,13 +39,22 @@
   - 対処: `remote.py`にマルチフレーム対応を実装。学習は`_collect_raw_frames`で最初のフレーム受信後、`FRAME_GATHER_WINDOW`(既定0.5秒)以内に届く後続フレームを`asyncio.Queue`で拾い続け、`list[str]`として保存するように変更(単一フレームのリモコンは要素数1のリストになるだけ)。送信は保存されたフレームを順番に(`FRAME_SEND_GAP`=0.03秒間隔で)送信。
   - 後方互換: 旧フォーマット(単一フレームの生文字列)がstorageに残っていても`_as_frames()`で`[str]`に正規化して送信できるようにしてある。
 
+### 2026-09-12: I2C拡張基盤 + ADT7410温度センサ
+
+- ADT7410(Analog Devices)を繋いで温度を取りたいとの要望。**注意**: ADT7410は温度専用ICで湿度は測れない(当初「湿度センサ機能も」という話が出たが、依頼者確認の上「温度センサの間違い」で決着)。
+- ADT7410はESPHome標準コンポーネントに存在しない(2026.8.2確認)。`esphome/external_components/adt7410/`に自前実装(`sensor.py`+`adt7410.h/.cpp`、既存の`htu21d`/`bh1750`コンポーネントを参考に、`sensor::Sensor`を直接継承する単一値センサーのパターンで作成)。16bit解像度モード(Configレジスタ`0x03`にbit7=1を書き込み)に固定し、温度レジスタ`0x00`の16bit符号付き値を128で割って℃に変換。
+- **I2C拡張基盤**: `irhub-common.yaml`に`i2c:`(SDA/SCLは`i2c_sda_pin`/`i2c_scl_pin`のsubstitutions、`scan: true`で起動時に接続デバイスのアドレス一覧をログ出力)を追加。IR/LED用ピンと同様、実際のピン番号はチップ別ファイル(`irhub-node-c5.yaml`: GPIO2/GPIO3、`irhub-node-c6.yaml`: GPIO19/GPIO20、いずれも非ストラッピングかつ既存ピンと非衝突)で上書き。XIAOのシルク印刷ピン番号(Dx)との対応は未確認なので実配線前に要確認、とコメントしてある。
+- **拡張性の設計**: I2Cは1本のバス(2ピン)にアドレスが被らない限り何個でもデバイスを追加できるので、今後センサーを増やす場合は`irhub-common.yaml`の`sensor:`リストに項目を足すだけでよい。SPIデバイスを足したい場合はCLK/MOSI/MISOは共有できるがデバイスごとにCS(チップセレクト)ピンが1本ずつ必要、という制約もコメントで明記した。
+- C5/C6両方で`esphome config`(バリデーション)・`bin/build.sh`(実ビルド)を実行し、コンパイル成功を確認済み(実機接続・実測値の検証はまだ)。
+
 ## ディレクトリ/ファイル現況
 
 ```
 esphome/
-  irhub-common.yaml        # 共通設定(WiFi/API/IR受信送信/ステータスLED等)
+  irhub-common.yaml        # 共通設定(WiFi/API/IR受信送信/ステータスLED/I2C+センサ等)
   irhub-node-c5.yaml        # C5向けエントリポイント(board/framework + ピン上書き)
   irhub-node-c6.yaml        # C6向けエントリポイント
+  external_components/adt7410/  # ADT7410温度センサの自前コンポーネント
   secrets.yaml.example      # api_encryption_keyのみ
   .gitignore
 ha/custom_components/irhub/
@@ -72,10 +81,11 @@ README.md      # プロジェクト全体のトップレベル案内
 - [x] `remote_receiver`でのIR受信(`Received Raw`ログ)
 - [x] `remote.learn_command`での学習・`.storage`への保存
 - [x] `remote.send_command`でのIR送信・実機家電のON確認
+- [ ] ADT7410温度センサの実機接続・実測値確認(コンパイル確認のみ済み)
 
 ## オープンな issue / 今後の検討事項
 
-- センサ類(人感・照度)の追加は未着手（[プラン](./2026-09-10_IRHub-plan.md) Phase 5参照）。
+- センサ類(人感・照度)の追加は未着手（[プラン](./2026-09-10_IRHub-plan.md) Phase 5参照）。I2C拡張基盤自体はADT7410対応時に整備済みなので、`irhub-common.yaml`の`sensor:`に追記していく形で足せる。
 - Thread対応は未着手。
 - IRプロトコルデコード(NEC等)は未対応、生タイミングのみ扱う設計のまま。
 - `num_repeats`/`delay_secs`/`hold_secs`など`remote.send_command`の付加オプションは

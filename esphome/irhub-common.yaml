@@ -39,6 +39,10 @@ substitutions:
   ir_receiver_pin: "GPIO4"
   ir_transmitter_pin: "GPIO5"
   status_led_pin: "GPIO8"
+  # I2Cセンサ拡張用(下記参照)。フォールバック値なので、実際のピンは
+  # irhub-node-c5.yaml / irhub-node-c6.yaml 側でチップごとに上書きしている。
+  i2c_sda_pin: "GPIO6"
+  i2c_scl_pin: "GPIO7"
 
 esphome:
   name: ${name}
@@ -135,3 +139,34 @@ light:
     # (初回起動時など保存済み状態が無ければOFFにフォールバック)
     restore_mode: RESTORE_DEFAULT_OFF
     # TODO: 受信中/送信中にblinkさせる等はPhase 2以降で automation として追加
+
+# --- I2Cセンサ拡張 ---
+# 1本のバス(SDA/SCL 2ピン)にアドレスさえ被らなければ何個でもデバイスを
+# 追加できる。センサーを増やす場合は下の`sensor:`にプラットフォームを
+# 追記していくだけでよい(ピンは増えない)。
+# SPIデバイスを追加したい場合は別途`spi:`を宣言し、CLK/MOSI/MISOは共有
+# できるが、デバイスごとにCS(チップセレクト)ピンが1本ずつ追加で必要になる
+# 点がI2Cと異なる(ピンの余裕と要相談)。
+i2c:
+  sda: ${i2c_sda_pin}
+  scl: ${i2c_scl_pin}
+  scan: true  # 起動時ログにバス上の全デバイスアドレスを列挙(配線確認用)
+
+# adt7410はESPHome標準コンポーネントに無いため自前実装
+# (external_components/adt7410/参照)。
+external_components:
+  - source:
+      type: local
+      path: external_components
+    components: [adt7410]
+
+sensor:
+  # Analog Devices ADT7410 (高精度I2C温度センサ、湿度は非対応)。
+  # デフォルトアドレス0x48(ADDR0/ADDR1ピンの結線で0x48〜0x4Bまで変更可)。
+  # 他のI2C/SPIセンサを追加する場合もこの`sensor:`リストに項目を
+  # 足していくだけでよい。
+  - platform: adt7410
+    name: "Temperature"
+    id: adt7410_temperature
+    address: 0x48
+    update_interval: 60s

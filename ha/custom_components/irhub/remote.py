@@ -5,7 +5,14 @@ ESPHome IRHubノード1台につき `remote` エンティティを1つ作る。
 - 送信 (`async_send_command`): 学習済みコードをStorageから引いて、
   ESPHome側のカスタムサービス `esphome.<device_slug>_send_raw` を呼ぶ。
 - 学習 (`async_learn_command`): `esphome.<device_slug>_ir_raw_received`
-  イベントを一定時間待ち受け、最初に届いた生タイミングをコマンド名で保存する。
+  イベントを一定時間待ち受け、届いた生タイミングをコマンド名で保存する。
+- マルチフレーム対応: DaikinなどのエアコンリモコンはESPHomeの
+  `remote_receiver`の`idle:`判定(既定10ms)より長いギャップを挟んで
+  複数の赤外線バーストを1回の操作で送ってくることがあり、その場合
+  `on_raw`イベントが1回の操作につき複数回発火する。これを1つの複合
+  コマンドとして学習・再送するため、コードは常に「フレーム(生データ
+  文字列)のリスト」として保存する(単一フレームのリモコンならリストの
+  要素数が1になるだけ)。
 - 保存先: HAのStorageヘルパー経由で `.storage/irhub_codes_<device_slug>` に
   JSONとして永続化。ESP32側には何も保存しない。
 - 削除・リネーム: `remote`ドメインに標準の削除/リネーム機能が無いため、
@@ -42,6 +49,13 @@ _LOGGER = logging.getLogger(__name__)
 SERVICE_DELETE_COMMAND = "delete_command"
 SERVICE_RENAME_COMMAND = "rename_command"
 
+# 1フレーム目が届いた後、これより短い間隔で次のフレームが届く限り
+# 「同じ操作の続き」とみなして拾い続ける(Daikin等のマルチフレーム対策)。
+# 実際のフレーム間ギャップは数十ms程度と見られるが、余裕を持たせてある。
+FRAME_GATHER_WINDOW = 0.5  # seconds
+# フレーム間の送信間隔(送信側)。受信側と同様、多少の間隔を空けて送る。
+FRAME_SEND_GAP = 0.03  # seconds
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -66,6 +80,16 @@ async def async_setup_entry(
     )
 
 
+def _as_frames(value: list[str] | str) -> list[str]:
+    """Normalize a stored code value to a list of frames.
+
+    旧フォーマット(単一フレームの生文字列)との後方互換用。
+    """
+    if isinstance(value, str):
+        return [value]
+    return list(value)
+
+
 class IRHubRemote(RemoteEntity):
     """Generic learning IR remote backed by one ESPHome IRHub node."""
 
@@ -75,7 +99,7 @@ class IRHubRemote(RemoteEntity):
     def __init__(self, device_slug: str, store: Store) -> None:
         self._device_slug = device_slug
         self._store = store
-        self._codes: dict[str, str] = {}
+        self._codes: dict[str, list[str] | str] = {}
         self._attr_unique_id = f"{DOMAIN}_{device_slug}"
         self._attr_name = f"IRHub {device_slug}"
         self._attr_is_on = True
@@ -109,20 +133,24 @@ class IRHubRemote(RemoteEntity):
     async def async_send_command(self, command: Iterable[str], **kwargs: Any) -> None:
         """Send one or more previously-learned commands."""
         for name in command:
-            raw = self._codes.get(name)
-            if raw is None:
+            stored = self._codes.get(name)
+            if stored is None:
                 _LOGGER.warning("Unknown IRHub command '%s', skipping", name)
                 continue
-            data = [int(v) for v in raw.split(",")]
-            await self.hass.services.async_call(
-                "esphome",
-                self._send_service,
-                {"data": data},
-                blocking=True,
-            )
+            frames = _as_frames(stored)
+            for i, frame in enumerate(frames):
+                data = [int(v) for v in frame.split(",")]
+                await self.hass.services.async_call(
+                    "esphome",
+                    self._send_service,
+                    {"data": data},
+                    blocking=True,
+                )
+                if i < len(frames) - 1:
+                    await asyncio.sleep(FRAME_SEND_GAP)
 
     async def async_learn_command(self, **kwargs: Any) -> None:
-        """Learn one or more commands by waiting for the device's IR-received event."""
+        """Learn one or more commands by waiting for the device's IR-received event(s)."""
         commands: Iterable[str] = kwargs.get("command", [])
         timeout: int = kwargs.get("timeout", DEFAULT_LEARN_TIMEOUT)
 
@@ -132,19 +160,21 @@ class IRHubRemote(RemoteEntity):
                 name,
                 timeout,
             )
-            raw = await self._await_next_raw_code(timeout)
-            if raw is None:
+            frames = await self._collect_raw_frames(timeout)
+            if frames is None:
                 raise TimeoutError(
                     f"'{name}' の学習がタイムアウトしました"
                     f"({timeout}秒以内にIR信号を受信できませんでした)"
                 )
-            self._codes[name] = raw
+            self._codes[name] = frames
             await self._store.async_save(self._codes)
             self.async_write_ha_state()  # commands属性(ダッシュボードのドロップダウン等)を更新
+            total_pulses = sum(len(f.split(",")) for f in frames)
             _LOGGER.info(
-                "IRHub: '%s' を学習・保存しました(%d pulses)",
+                "IRHub: '%s' を学習・保存しました(%dフレーム, 計%d pulses)",
                 name,
-                len(raw.split(",")),
+                len(frames),
+                total_pulses,
             )
 
     async def async_delete_command(self, command: str) -> None:
@@ -172,20 +202,35 @@ class IRHubRemote(RemoteEntity):
         self.async_write_ha_state()
         _LOGGER.info("IRHub: '%s' を '%s' にリネームしました", old_name, new_name)
 
-    async def _await_next_raw_code(self, timeout: int) -> str | None:
-        """Wait for the next raw-IR event fired from the ESPHome node."""
-        loop = asyncio.get_running_loop()
-        future: asyncio.Future[str] = loop.create_future()
+    async def _collect_raw_frames(self, timeout: int) -> list[str] | None:
+        """Wait for the first frame, then keep collecting frames that arrive
+        in quick succession (within FRAME_GATHER_WINDOW of the previous one)
+        as parts of the same logical command.
+
+        DaikinなどのエアコンリモコンはESPHomeのidle判定より長いギャップを
+        挟んで複数バーストを送ってくるため、on_rawイベントが1回の操作で
+        複数回発火することがある。それらをまとめて1コマンドとして扱う。
+        """
+        queue: asyncio.Queue[str] = asyncio.Queue()
 
         @callback
         def _handle_event(event: Event) -> None:
-            if not future.done():
-                future.set_result(event.data["raw"])
+            queue.put_nowait(event.data["raw"])
 
         remove_listener = self.hass.bus.async_listen(self._learn_event_name, _handle_event)
         try:
-            return await asyncio.wait_for(future, timeout=timeout)
-        except asyncio.TimeoutError:
-            return None
+            try:
+                first = await asyncio.wait_for(queue.get(), timeout=timeout)
+            except asyncio.TimeoutError:
+                return None
+            frames = [first]
+
+            while True:
+                try:
+                    frames.append(await asyncio.wait_for(queue.get(), timeout=FRAME_GATHER_WINDOW))
+                except asyncio.TimeoutError:
+                    break
+
+            return frames
         finally:
             remove_listener()

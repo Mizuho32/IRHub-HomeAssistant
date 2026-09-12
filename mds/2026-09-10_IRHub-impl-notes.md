@@ -28,6 +28,17 @@
 - **切り分けの過程で判明**: ESP32-C5/C6はRMT実装(`remote_transmitter_rmt.cpp`)が使われるため、C3/S3以前で使われるビットバン実装(`remote_transmitter.cpp`)にある`ESP_LOGD(TAG, "Sending remote code")`が出ない。これは仕様であり異常ではない。
 - **✅ End-to-Endで動作確認完了**: HA UIから`remote.learn_command`で学習→`.storage/irhub_codes_irhub-node-c5`に保存→`remote.send_command`でIR送信→実機の家電(扇風機)の電源ON まで確認。
 
+### 2026-09-13頃: HA側UI改善 + マルチフレームリモコン対応
+
+- **ダッシュボードUI改善**: `ha/dashboard-example.yaml`にDeveloper Tools不要の軽量UI(input_text + script + template select)を追加。経緯:
+  - `remote.py`に`commands`属性(学習済みコマンド名一覧)を追加。
+  - 対象デバイス・対象コマンドをハードコードせずドロップダウンから選べるように(`select.irhub_target_device`は`integration_entities('irhub')`、`select.irhub_known_command`は選択中デバイスの`commands`属性を選択肢にしたtemplate select)。将来IRHubノードを追加してもダッシュボード編集不要。
+  - `irhub.delete_command`/`irhub.rename_command`をentity serviceとして追加(標準`remote`ドメインには無い機能)。
+  - ハマりポイント: `input_text`/`script`はYAMLキーがそのままentity_idになるが、`template: select:`は`name:`からslugifyでentity_idを自動生成する。日本語名だとローマ字化が壊れて`対象デバイス`→`dui_xiang_tehaisu`のような文字列になり、ダッシュボードが参照するIDと不一致になった。`name:`を英語にして回避(既存分は手動でentity_idをリネームして解消)。
+- **バグ⑤: マルチフレームリモコン(Daikin等)が正しく学習できない**。DAIKIN F28YTESのエアコンリモコンで発覚。1回のボタン押下で「短い前置きバースト＋長い本体フレーム×2」の**計3回**`on_raw`イベントが発火していた(各フレーム間のギャップが`remote_receiver`の`idle:`判定(既定10ms)より長く、ESPHomeが別々の信号として分割していた)。旧実装は最初の1フレーム(=一番短い前置きバーストのみ、11pulse程度)だけを学習・保存しており、本体の状態データを含む後続フレームを捨てていたため、送信しても家電が反応しなかった。
+  - 対処: `remote.py`にマルチフレーム対応を実装。学習は`_collect_raw_frames`で最初のフレーム受信後、`FRAME_GATHER_WINDOW`(既定0.5秒)以内に届く後続フレームを`asyncio.Queue`で拾い続け、`list[str]`として保存するように変更(単一フレームのリモコンは要素数1のリストになるだけ)。送信は保存されたフレームを順番に(`FRAME_SEND_GAP`=0.03秒間隔で)送信。
+  - 後方互換: 旧フォーマット(単一フレームの生文字列)がstorageに残っていても`_as_frames()`で`[str]`に正規化して送信できるようにしてある。
+
 ## ディレクトリ/ファイル現況
 
 ```

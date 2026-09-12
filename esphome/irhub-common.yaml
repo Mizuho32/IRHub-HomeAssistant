@@ -75,6 +75,11 @@ api:
         - remote_transmitter.transmit_raw:
             transmitter_id: ir_tx
             code: !lambda "return data;"
+            # carrier_frequencyを省略すると0Hz(=無変調のただのON/OFF)になり、
+            # 一般的な38kHz復調型のIR受信機では信号として認識されない。
+            # remote_receiverは受信時に既に復調済みの包絡線だけを記録して
+            # いるので、送信時に改めて変調をかけ直す必要がある。
+            carrier_frequency: 38kHz
 
 ota:
   - platform: esphome

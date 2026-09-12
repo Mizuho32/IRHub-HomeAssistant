@@ -219,44 +219,19 @@ IRHubノードはUSB給電の常時稼働・据え置き機器なので、正直
 3. 本命は将来追加するかもしれない**バッテリー駆動の付加センサー**を
    Thread(MTD、スリープ運用)で作る場合の予行演習、という位置づけ。
 
-## 実装状況(2026-09-12)
+## 実装状況
 
-上記の方針で実装済み。詳細は
-[`2026-09-10_IRHub-impl-notes.md`](./2026-09-10_IRHub-impl-notes.md)の
-「Thread版ノード実装(実験)」セクション参照。要点:
+上記の方針で実装に着手済み。実装プラン・進捗ログは
+[`2026-09-12_IRHub-thread-plan.md`](./2026-09-12_IRHub-thread-plan.md)/
+[`2026-09-12_IRHub-thread-impl-notes.md`](./2026-09-12_IRHub-thread-impl-notes.md)
+に分離した(このドキュメントは調査・意思決定の記録に専念する)。
 
-- `irhub-common.yaml`からネットワーク層を分離し、`irhub-network-wifi.yaml`/
-  `irhub-network-thread.yaml`のどちらかを各ノードYAMLがincludeする構成にした。
-- `irhub-node-c5-thread.yaml`/`irhub-node-c6-thread.yaml`を新設。
-- 4パターン(C5/C6 × WiFi/Thread)全て`esphome config`・実ビルド成功。
-- **未実施**: 実機書き込み、HAでのmDNS自動検出確認、IR学習・送信の
-  Thread経由での実動作確認、WiFi版とのレイテンシ比較。
-
-## 次のステップ(提案)
-
-1. Operational Dataset TLVを取得。以下のどちらでも同じ値が手に入る:
-   - **HAのUIだけで完結する方法(推奨)**: `設定 > システム > ネットワーク >
-     Thread`タブに該当ネットワークの詳細を開くと`Active dataset TLVs: ...`
-     という項目にそのまま表示されている。SSH/docker/Proxmoxコンソール一切不要。
-   - CLI経由(HAのSSHアドオンからやる場合、デフォルトのProtection mode
-     ONだとDockerソケットが見えないので**Protection modeをOFFにする**必要
-     がある。上級者モード有効化 → アドオン詳細でトグルOFF → 再起動):
-     ```sh
-     docker exec -it addon_core_openthread_border_router ot-ctl dataset active -x
-     ```
-2. `esphome/secrets.yaml`に`thread_dataset_tlv`のようなキーで保存
-   (バイナリには焼き込まれるが、リポジトリにはコミットしない今まで通りの
-   運用)。ESPHome側は`tlv:`を使う場合、`network_key`/`pan_id`等の個別
-   パラメータとは排他(`cv.has_exactly_one_key`)なので混在させないこと。
-3. `esphome/irhub-node-c5-thread.yaml`(仮)を新設し、`irhub-common.yaml`は
-   共有しつつ`wifi:`/`improv_serial:`ブロックだけ`network: enable_ipv6:
-   true` + `openthread: tlv: !secret thread_dataset_tlv` に差し替えた
-   派生設定を作る(具体的な分割方法は実装時に要検討。共通部分から
-   wifi/improv_serialを抜いて`irhub-common-network-wifi.yaml`と
-   `irhub-common-network-thread.yaml`のように分離するのが素直そう)。
-4. ビルド・書き込み後、HAのESPHome統合が自動検出するか、
-   `irhub-node-c5-thread.local`で疎通するかを実機確認。
-5. 問題なければ、IR学習・送信の往復レイテンシをWiFi版と比較。
+Operational Dataset TLVの取得方法(HAのThreadタブでコピーするだけ、
+SSH/docker/Proxmoxコンソール不要)を含む具体的な実装手順は
+[`2026-09-12_IRHub-thread-plan.md`](./2026-09-12_IRHub-thread-plan.md)の
+Phase T0〜T1、鍵のUARTアップロード方式の検討結果は
+[`2026-09-12_IRHub-thread-impl-notes.md`](./2026-09-12_IRHub-thread-impl-notes.md)
+参照。
 
 ## 補足: Matter経由での参加は検討したか
 

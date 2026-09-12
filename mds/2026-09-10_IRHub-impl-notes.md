@@ -48,34 +48,15 @@
 - C5/C6両方で`esphome config`(バリデーション)・`bin/build.sh`(実ビルド)を実行し、コンパイル成功を確認済み。**実機確認済み**: `bin/monitor.sh`のログで`Temperature=26.99°C`のような妥当な値が60秒おきに出ることを確認(HA側にもESPHome統合経由でそのまま`sensor.`エンティティとして自動的に見える。IRHubの`custom_components`はremoteドメインのみ扱うので無関係)。
 - **訂正: GPIO7(C5, status_led_pin/D3)はストラッピングピンでも実害なし**。ESP32-C5データシート上はストラッピングピン扱いだが、XIAOボード側のピン説明ではD3に特別な役割は無く、実機でも問題なく動作した。過去のC6での再起動ループはストラッピングピン競合が真因と考えていたが、実際は電源不足(USBハブ経由給電のブラウンアウト)が真因だった可能性が高い(いずれにせよ直接USB給電に変えて解消済み)。
 
-### 2026-09-12: Thread版ノード実装(実験)
+### 2026-09-12: Thread版ノード対応(別ドキュメントへ分離)
 
-詳しい調査は[`2026-09-12_IRHub-thread-investigation.md`](./2026-09-12_IRHub-thread-investigation.md)参照。ここでは実装内容のみ記録。
-
-- `irhub-common.yaml`から`wifi:`/`improv_serial:`を分離し、
-  `irhub-network-wifi.yaml`(既存のWiFi+improv_serial)と
-  `irhub-network-thread.yaml`(新規、`network: enable_ipv6: true` +
-  `openthread: device_type: FTD, tlv: !secret thread_dataset_tlv`)の
-  2ファイルに分割。各ノードYAMLの`packages:`でどちらか一方をincludeする形にした
-  (ESPHome側の`CONFLICTS_WITH = ["wifi"]`制約により、WiFiとThreadは同一
-  バイナリに共存できないため)。
-- `irhub-node-c5-thread.yaml`/`irhub-node-c6-thread.yaml`を新設。ピン配置は
-  対応するWiFi版と同一(IR/LED/I2Cの配線は変えていない、ネットワーク層のみ差し替え)。
-  `name:`はWiFi版と衝突しないよう`irhub-node-c5-thread`のように別名にした。
-- Thread認証情報(Operational Dataset)はimprov_serial相当の実行時プロビジョニング
-  手段が無いため、`secrets.yaml`の`thread_dataset_tlv`にコンパイル時埋め込み。
-  値はHAの`設定 > システム > ネットワーク > Thread`タブに出ている
-  `Active dataset TLVs: ...`をそのままコピーするだけで取得できた
-  (SSH/docker exec/Proxmoxコンソール一切不要だった)。
-- `bin/build.sh`/`flash.sh`/`monitor.sh`のチップ種別バリデーションに
-  `c5-thread`/`c6-thread`を追加。
-- C5/C6のWiFi版・Thread版、計4パターン全て`esphome config`のバリデーションと
-  実ビルド(`bin/build.sh`)に成功(実機書き込み・Thread実接続の確認はまだ)。
-- 検討の結果**やらなかったこと**: 「Matterとして振る舞ってQRでThread参加
-  してから自由に使う」案(過去の`SleepBtn`プロジェクトでMatter over Thread
-  の実績あり)。ESPHomeを完全に手放すことになり、IR送受信・OTA・HA連携を
-  全部手書きC++で再実装するコストが見合わないと判断し不採用
-  (詳細は調査ドキュメントの補足セクション参照)。
+WiFi版と別バイナリになるThread(802.15.4)対応の実装ログ・プランは
+[`2026-09-12_IRHub-thread-plan.md`](./2026-09-12_IRHub-thread-plan.md)/
+[`2026-09-12_IRHub-thread-impl-notes.md`](./2026-09-12_IRHub-thread-impl-notes.md)
+に分離した(このファイルはWiFi版本体のログに専念する)。`irhub-common.yaml`
+からネットワーク層(`wifi:`/`improv_serial:`)を`irhub-network-wifi.yaml`に
+切り出した点だけはWiFi版にも影響するので触れておく:内容は変えていない
+(ロジック上は無変更、ファイル分割のみ)。
 
 ## ディレクトリ/ファイル現況
 
@@ -120,7 +101,7 @@ README.md      # プロジェクト全体のトップレベル案内
 ## オープンな issue / 今後の検討事項
 
 - センサ類(人感・照度)の追加は未着手（[プラン](./2026-09-10_IRHub-plan.md) Phase 5参照）。I2C拡張基盤自体はADT7410対応時に整備済みなので、`irhub-common.yaml`の`sensor:`に追記していく形で足せる。
-- Thread対応は未着手。
+- Thread対応は着手済み(別ドキュメント)。[`2026-09-12_IRHub-thread-plan.md`](./2026-09-12_IRHub-thread-plan.md)/[`2026-09-12_IRHub-thread-impl-notes.md`](./2026-09-12_IRHub-thread-impl-notes.md)参照。
 - IRプロトコルデコード(NEC等)は未対応、生タイミングのみ扱う設計のまま。
 - `num_repeats`/`delay_secs`/`hold_secs`など`remote.send_command`の付加オプションは
   現状`custom_components/irhub`側で未対応(無視される)。必要になったら

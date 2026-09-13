@@ -183,8 +183,13 @@ sensor:
   # 無効化できる)。まだ実機未投入の新規センサーなので、ここでの
   # name:は自由に決めてよい(ADT7410の"Temperature"と紛らわしくない
   # ように分けてある)。
+  # irhub-common.yamlのlogger:にBME280のタグだけVERBOSEを指定すればログに出るようになります:
+  # logger:
+  #   logs:
+  #     bme280_base: VERBOSE
+
   - platform: bme280_i2c
-    address: 0x77
+    address: 0x76
     update_interval: 60s
     temperature:
       name: "BME280 Temperature 1"

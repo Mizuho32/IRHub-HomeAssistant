@@ -58,6 +58,23 @@ WiFi版と別バイナリになるThread(802.15.4)対応の実装ログ・プラ
 切り出した点だけはWiFi版にも影響するので触れておく:内容は変えていない
 (ロジック上は無変更、ファイル分割のみ)。
 
+### 2026-09-13: BME280(温湿度気圧)追加、複数センサ共存の確認
+
+- BME280はESPHome標準コンポーネント(`platform: bme280_i2c`、デフォルト
+  アドレス0x77)なので、ADT7410と違い自前実装不要。`irhub-common.yaml`の
+  `sensor:`にそのまま追記するだけで済んだ(拡張性の設計通り機能)。
+- ADT7410(0x48)とBME280(0x76/0x77)はアドレスが元々被らないので、同じ
+  I2Cバスにそのまま共存できる。実際に両方を`sensor:`に併記して
+  `esphome config`/実ビルド成功を確認済み(実機接続はまだ)。
+- **複数の気温センサーがHAにどう見えるか**: ESPHomeでは`sensor:`配下の
+  各エントリ(sub-sensor含む)がそれぞれ独立したHAエンティティとして
+  公開されるので、ADT7410とBME280を両方繋げば
+  `sensor.irhub_..._adt7410_temperature`と
+  `sensor.irhub_..._bme280_temperature`のように**別々のエンティティとして
+  両方見える**(名前が同じだと紛らわしいので、ADT7410側の`name:`も
+  「Temperature」から「ADT7410 Temperature」に変更し、BME280側は
+  「BME280 Temperature」/「BME280 Humidity」/「BME280 Pressure」とした)。
+
 ## ディレクトリ/ファイル現況
 
 ```
@@ -96,7 +113,8 @@ README.md      # プロジェクト全体のトップレベル案内
 - [x] `remote_receiver`でのIR受信(`Received Raw`ログ)
 - [x] `remote.learn_command`での学習・`.storage`への保存
 - [x] `remote.send_command`でのIR送信・実機家電のON確認
-- [ ] ADT7410温度センサの実機接続・実測値確認(コンパイル確認のみ済み)
+- [x] ADT7410温度センサの実機接続・実測値確認
+- [ ] BME280(温湿度気圧)の実機接続・実測値確認(コンパイル確認のみ済み)
 
 ## オープンな issue / 今後の検討事項
 

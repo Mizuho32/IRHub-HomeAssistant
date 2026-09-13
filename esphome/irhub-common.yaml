@@ -163,8 +163,15 @@ sensor:
   # 足していくだけでよい(下のBME280が実例)。アドレスさえ被らなければ
   # 同じI2Cバスに何個でも共存できる(ADT7410=0x48、BME280=0x76/0x77で
   # 元々被らない)。
+  #
+  # name:は"Temperature"のまま(実機で既に稼働中のため変更しない)。
+  # ESPHomeの`name:`はHA側unique_idの一部になるため、ここを変えると
+  # HA上で別エンティティ扱いになり履歴が途切れる
+  # (詳細: mds/2026-09-13_IRHub-esphome-tips.md)。BME280と並べて
+  # 見分けたい場合は、ESPHome側ではなくHA側(設定 > エンティティ)で
+  # 表示名だけリネームすること。
   - platform: adt7410
-    name: "ADT7410 Temperature"
+    name: "Temperature"
     id: adt7410_temperature
     address: 0x48
     update_interval: 60s
@@ -173,18 +180,18 @@ sensor:
   # デフォルトアドレス0x77(SDOピンをGNDに繋ぐと0x76になる基板が多い、
   # 配線に合わせて変更すること)。温度・湿度・気圧はそれぞれ個別の
   # HAエンティティとして公開される(sub-sensorを省略すればその項目だけ
-  # 無効化できる)。ADT7410と同時に接続した場合、HA側には「ADT7410
-  # Temperature」と「BME280 Temperature」の2つの気温センサーが別々に
-  # 見える(名前を変えているのは見分けるため。地味に重要)。
+  # 無効化できる)。まだ実機未投入の新規センサーなので、ここでの
+  # name:は自由に決めてよい(ADT7410の"Temperature"と紛らわしくない
+  # ように分けてある)。
   - platform: bme280_i2c
     address: 0x77
     update_interval: 60s
     temperature:
-      name: "BME280 Temperature"
-      id: bme280_temperature
+      name: "BME280 Temperature 1"
+      id: bme280_temperature_1
     humidity:
-      name: "BME280 Humidity"
-      id: bme280_humidity
+      name: "BME280 Humidity 1"
+      id: bme280_humidity_1
     pressure:
-      name: "BME280 Pressure"
-      id: bme280_pressure
+      name: "BME280 Pressure 1"
+      id: bme280_pressure_1

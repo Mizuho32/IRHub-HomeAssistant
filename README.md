@@ -74,6 +74,9 @@ Thread(802.15.4)でHAに接続する実験版。WiFi版とはESPHome側の制約
   検出でのリセットはWiFi起動時の電流スパイクに給電が耐えられないと起きる。
   フラッシュが壊れた疑いがあれば `bin/erase.sh` → `bin/build.sh` →
   `bin/flash.sh` でクリーンに焼き直す。
+- センサーを追加する前に [`mds/2026-09-13_IRHub-esphome-tips.md`](mds/2026-09-13_IRHub-esphome-tips.md)
+  (ESPHome/HA連携のハマりどころ集)に目を通しておくと事故が減る
+  (特に「エンティティの`name:`を変えるとHA側で履歴が切れる」件)。
 - その他の詳細な調査経緯・設計判断は [`mds/`](mds/) 以下のドキュメント
   ([`2026-09-10_IRHub.md`](mds/2026-09-10_IRHub.md)、
   [`2026-09-10_IRHub-plan.md`](mds/2026-09-10_IRHub-plan.md)、

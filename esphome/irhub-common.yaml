@@ -213,7 +213,10 @@ sensor:
       name: "BME280 Humidity 1"
       id: bme280_humidity_1
       filters:
-        - offset: -2
+        #- offset: -2
+        - calibrate_linear:
+            - 66.9 -> 61     # BME280が64.9%と表示した時、真値(基準)は61%だった。offset乗ってないか注意
+            - 77 -> 75       
     pressure:
       name: "BME280 Pressure 1"
       id: bme280_pressure_1

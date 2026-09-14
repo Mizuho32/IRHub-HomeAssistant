@@ -194,9 +194,26 @@ sensor:
     temperature:
       name: "BME280 Temperature 1"
       id: bme280_temperature_1
+      # ADT7410/市販温度計との比較でBME280が低めに出る(2026-09-14実測:
+      # ADT7410=27.89, 市販温度計=27.6, BME280=27.2)。BME280はdatasheet上も
+      # 温度精度が±1℃程度(湿度・気圧優先の複合センサ)で、工場校正済みの
+      # ADT7410の方が信頼できるため、ADT7410を基準にoffsetで補正する。
+      # 1点補正なので温度域が変わると誤差が変わる可能性あり。別の温度帯でも
+      # 実測できたらcalibrate_linear:(2点以上)に切り替えて精度を上げること。
+      # calibrate_linear:を使う場合のサンプル(2点以上の実測ペアから線形回帰、
+      # 全域で1点offsetより高精度。例: 低温側と高温側でそれぞれADT7410と
+      # 比較実測して置き換える):
+      #   filters:
+      #     - calibrate_linear:
+      #         - 27.2 -> 27.9   # 室温付近(今回の実測点)
+      #         - 10.0 -> 10.6   # 別の温度帯(例: 冬場や冷蔵庫近くで実測して埋める)
+      filters:
+        - offset: 0.7
     humidity:
       name: "BME280 Humidity 1"
       id: bme280_humidity_1
+      filters:
+        - offset: -2
     pressure:
       name: "BME280 Pressure 1"
       id: bme280_pressure_1

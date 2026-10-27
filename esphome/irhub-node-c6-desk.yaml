@@ -1,0 +1,43 @@
+# XIAO ESP32-C6向け 卓上(desk)ノード。IR送受信・ステータスLEDなし、
+# 温湿度気圧センサー(BME280)だけを持つ。
+# `bin/build.sh c6-desk` / `bin/flash.sh c6-desk` で使う。
+#
+# irhub-common.yaml(IR+LED+ADT7410+BME280のフル構成)は使わず、
+# 必要なパッケージだけを個別にincludeする。IRの受信ピンを未接続(浮いた)
+# まま有効にしておくとノイズを拾って`Received Raw`ログが毎秒十数件出続け、
+# USB-Serial/JTAGのログ/Improvが実質使えなくなるため。
+
+packages:
+  base: !include irhub-base.yaml
+  network: !include irhub-network-wifi.yaml
+  bme280: !include irhub-bme280.yaml
+
+substitutions:
+  name: "irhub-node-c6-desk"
+  friendly_name: "IRHub Desk"
+  # XIAOのシルク上のSDA/SCL(D4/D5)。C6のストラッピングピン(GPIO4,5,8,9,15)
+  # とは被らない。
+  i2c_sda_pin: "GPIO22"  # D4
+  i2c_scl_pin: "GPIO23"  # D5
+
+esp32:
+  board: seeed_xiao_esp32c6
+  framework:
+    type: esp-idf
+
+# このノードに付いているBME280個体の補正(irhub-bme280.yamlのbme280_1に追記)。
+sensor:
+  - id: !extend bme280_1
+    temperature:
+      filters:
+        # 表示値 = センサ値 + offset。irhub-common.yaml側の個体の値を
+        # 暫定で流用しているだけ(この個体では未実測)。
+        - offset: 0.7
+    humidity:
+      filters:
+        # 2026-10-28実測(左: BME280表示値 -> 右: 基準の真値)。2点から線形補正。
+        # 温度のoffsetは湿度の値には影響しない(BME280は湿度補償に
+        # 内部の生温度を使う)。
+        - calibrate_linear:
+            - 73 -> 75.5
+            - 35 -> 33

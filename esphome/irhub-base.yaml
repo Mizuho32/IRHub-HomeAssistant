@@ -1,0 +1,41 @@
+# IRHub ESPHomeノード 基本インフラ(全ノード共通)。
+#
+# esphome:/logger:/preferences:/api:(暗号化のみ)/ota:/web_server: だけを持つ。
+# IR送受信(irhub-ir.yaml)やセンサー(irhub-bme280.yaml等)は含まないので、
+# 機能を絞ったノード(例: irhub-node-c6-desk.yaml)はこれを直接includeする。
+# フル機能ノードは irhub-common.yaml 経由でincludeされる。
+
+substitutions:
+  name: "irhub-node"
+  friendly_name: "IRHub"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+# --- 基本インフラ ---
+# wifi:/improv_serial: または network:/openthread: は
+# irhub-network-wifi.yaml / irhub-network-thread.yaml側で定義する
+# (各ノードYAMLのpackages:でどちらか一方をinclude)。
+
+logger:
+  # improv_serialはこのUARTロガー経由でシリアル通信する。
+
+# preferences(flashへの状態保存)のデフォルトは60秒間隔のバッチ書き込み。
+# ソフト処理を挟まないハードリセット(RSTボタン=EN直落とし)だと、直前の
+# トグルがまだflashに書き込まれておらず消えることがあるため即時書き込みに
+# 変更する(0s = 毎ループ、変更があれば即書き込み)。書き込み頻度自体は
+# 低い(LEDトグル・起動カウンタ程度)想定なのでflash摩耗のリスクは小さい。
+preferences:
+  flash_write_interval: 0s
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+
+# デバッグ用。安定してきたら外してよい。
+web_server:
+  version: 3

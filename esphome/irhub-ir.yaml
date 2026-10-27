@@ -1,0 +1,55 @@
+# IRHub 赤外線送受信(remote_receiver/remote_transmitter + HA向けsend_rawサービス)。
+# irhub-common.yaml からincludeされる。api:のservices:はirhub-base.yamlの
+# api:にマージされる。
+
+substitutions:
+  ir_receiver_pin: "GPIO4"
+  ir_transmitter_pin: "GPIO5"
+
+api:
+  services:
+    # HA側から `esphome.${name}_send_raw` として呼べるカスタムサービス。
+    # 学習済みの生タイミング配列(int配列, us単位, 符号でmark/space)をそのまま送信する。
+    - service: send_raw
+      variables:
+        data: int[]
+      then:
+        - remote_transmitter.transmit_raw:
+            transmitter_id: ir_tx
+            code: !lambda "return data;"
+            # carrier_frequencyを省略すると0Hz(=無変調のただのON/OFF)になり、
+            # 一般的な38kHz復調型のIR受信機では信号として認識されない。
+            # remote_receiverは受信時に既に復調済みの包絡線だけを記録して
+            # いるので、送信時に改めて変調をかけ直す必要がある。
+            carrier_frequency: 38kHz
+
+
+# --- 赤外線受信 ---
+remote_receiver:
+  id: ir_rx
+  pin:
+    number: ${ir_receiver_pin}
+    inverted: true
+  dump: raw
+  # 受信した生タイミングをそのままHAのイベントバスへ転送する。
+  # custom_components/irhub 側が `esphome.${name}_ir_raw_received` を
+  # 学習(learn_command)のトリガーとして購読する想定。
+  on_raw:
+    then:
+      - homeassistant.event:
+          event: esphome.${name}_ir_raw_received
+          data:
+            raw: !lambda |-
+              std::string s;
+              for (auto v : x) {
+                if (!s.empty()) s += ",";
+                s += to_string(v);
+              }
+              return s;
+
+# --- 赤外線送信 ---
+remote_transmitter:
+  id: ir_tx
+  pin: ${ir_transmitter_pin}
+  carrier_duty_percent: 50%
+

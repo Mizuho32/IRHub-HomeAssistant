@@ -1,0 +1,51 @@
+# IRHub I2Cバス + BME280(温湿度気圧)。
+# irhub-common.yaml や irhub-node-c6-desk.yaml からincludeされる。
+# ADT7410等、他のI2Cセンサーを足すノードは include元の`sensor:`に追記すればよい
+# (sensor:リストはパッケージ間で連結される)。
+
+substitutions:
+  i2c_sda_pin: "GPIO6"
+  i2c_scl_pin: "GPIO7"
+
+# --- I2Cセンサ拡張 ---
+# 1本のバス(SDA/SCL 2ピン)にアドレスさえ被らなければ何個でもデバイスを
+# 追加できる。センサーを増やす場合は下の`sensor:`にプラットフォームを
+# 追記していくだけでよい(ピンは増えない)。
+# SPIデバイスを追加したい場合は別途`spi:`を宣言し、CLK/MOSI/MISOは共有
+# できるが、デバイスごとにCS(チップセレクト)ピンが1本ずつ追加で必要になる
+# 点がI2Cと異なる(ピンの余裕と要相談)。
+i2c:
+  sda: ${i2c_sda_pin}
+  scl: ${i2c_scl_pin}
+  scan: true  # 起動時ログにバス上の全デバイスアドレスを列挙(配線確認用)
+
+sensor:
+  # Bosch BME280 (温度・湿度・気圧、ESPHome標準コンポーネント)。
+  # デフォルトアドレス0x77(SDOピンをGNDに繋ぐと0x76になる基板が多い、
+  # 配線に合わせて変更すること)。温度・湿度・気圧はそれぞれ個別の
+  # HAエンティティとして公開される(sub-sensorを省略すればその項目だけ
+  # 無効化できる)。まだ実機未投入の新規センサーなので、ここでの
+  # name:は自由に決めてよい(ADT7410の"Temperature"と紛らわしくない
+  # ように分けてある)。
+  # irhub-common.yamlのlogger:にBME280のタグだけVERBOSEを指定すればログに出るようになります:
+  # logger:
+  #   logs:
+  #     bme280_base: VERBOSE
+
+  - platform: bme280_i2c
+    address: 0x76
+    update_interval: 60s
+    # ノード側から`- id: !extend bme280_1`で補正(filters)を足すためのid。
+    # 補正値はセンサー個体ごとに違うので、このパッケージには書かない。
+    # (filters:はリストなので!extendでも上書きではなく連結になる。ここで
+    #  空にしておけば、ノード側に書いたものだけが効く)
+    id: bme280_1
+    temperature:
+      name: "BME280 Temperature 1"
+      id: bme280_temperature_1
+    humidity:
+      name: "BME280 Humidity 1"
+      id: bme280_humidity_1
+    pressure:
+      name: "BME280 Pressure 1"
+      id: bme280_pressure_1

@@ -7,6 +7,7 @@
 #   bin/build.sh c6        # C6のみ(WiFi版)
 #   bin/build.sh c5-thread # C5のみ(Thread版、実験。要secrets.yamlのthread_dataset_tlv)
 #   bin/build.sh c6-thread # C6のみ(Thread版、実験)
+#   bin/build.sh c6-desk   # C6卓上ノード(IRなし、BME280のみ)
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,13 +20,13 @@ build_one() {
 }
 
 case "$TARGET" in
-  c5|c6|c5-thread|c6-thread) build_one "$TARGET" ;;
+  c5|c6|c5-thread|c6-thread|c6-desk) build_one "$TARGET" ;;
   all)
     build_one c5
     build_one c6
     ;;
   *)
-    echo "usage: $0 [c5|c6|c5-thread|c6-thread]" >&2
+    echo "usage: $0 [c5|c6|c5-thread|c6-thread|c6-desk]" >&2
     exit 1
     ;;
 esac

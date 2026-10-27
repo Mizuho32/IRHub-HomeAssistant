@@ -27,3 +27,9 @@ esp32:
     type: esp-idf
     # OpenThreadはArduinoコアでは使えずesp-idf限定のため、
     # 将来Thread対応する前提でesp-idfに固定しておく。
+
+# BME280はc6-deskノード(irhub-node-c6-desk.yaml)に移設したため、このノードでは
+# 無効化する(irhub-common.yaml経由で入ってくるbme280_1と、その補正の
+# !extendごと除去される)。ADT7410はそのまま。
+sensor:
+  - id: !remove bme280_1

@@ -1,8 +1,10 @@
 *.toml
 *.log
 .*.swp
+*.csv
+*.yaml
 
 .platformio/
 
 /.claude/
-/data/
+data/

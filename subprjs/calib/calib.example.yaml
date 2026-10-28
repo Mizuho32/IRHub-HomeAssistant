@@ -1,0 +1,43 @@
+# calib.py の定義ファイル例。コピーして calib.yaml 等にして使う:
+#   venv/bin/python calib.py calib.yaml
+
+# HAの履歴画面から「データをダウンロード」したCSV(このファイルからの相対パス
+# ではなく、実行時のカレントディレクトリからのパス)。
+csv: data/history.csv
+
+# 正しいとみなす参照センサー。
+reference: sensor.irhub_node_c5_temperature
+
+# 当てはめるモデル(offset / linear / poly2 / poly3)。省略時は offset, linear, poly2。
+models: [offset, linear, poly2]
+
+# センサー間の応答遅れの探索範囲(分)。0で推定しない。
+max_lag_min: 20
+
+targets:
+  # 補正なしのセンサー。
+  - entity: sensor.irhub_c6_calib_sht40_temperature_1
+  - entity: sensor.irhub_c6_calib_aht25_temperature_1
+
+  # HA上の値に既に補正がかかっているセンサーは、ESPHome yamlのfilters:を
+  # そのまま applied: に貼る(逆変換して生値に戻してから計算する)。
+  # 対応: offset / multiply / calibrate_linear / calibrate_polynomial
+  - entity: sensor.irhub_desk_bme280_temperature_1
+    applied:
+      - offset: 0.7
+
+  # 例: calibrate_linear (datapointsは "a -> b" 文字列でも [a, b] でも可)
+  # - entity: sensor.irhub_desk_bme280_humidity_1
+  #   applied:
+  #     - calibrate_linear:
+  #         - 73 -> 75.5
+  #         - 35 -> 33
+  #
+  # 例: calibrate_polynomial
+  #   applied:
+  #     - calibrate_polynomial:
+  #         degree: 2
+  #         datapoints:
+  #           - 20 -> 20.5
+  #           - 22 -> 22.3
+  #           - 25 -> 25.1

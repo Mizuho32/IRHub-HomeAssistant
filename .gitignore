@@ -2,7 +2,6 @@
 *.log
 .*.swp
 *.csv
-*.yaml
 
 .platformio/
 

@@ -1,0 +1,29 @@
+# XIAO ESP32-C6向け センサー校正用ノード。IR送受信・ステータスLEDなし、
+# 温湿度センサー(SHT40 / AHT25、必要ならBME280も)を同じI2Cバスに並べて比較する。
+# `bin/build.sh c6-calib` / `bin/flash.sh c6-calib` で使う。
+#
+# 校正の基準取りが目的なので、ここではfilters(個体補正)を一切かけない
+# (=HA上の値がそのままセンサーの生値)。ここで取った実測ペアを、実際に
+# そのセンサーを載せるノードのyaml側に`!extend`で書く
+# (例: irhub-node-c6-desk.yamlのbme280_1)。
+# 未接続のセンサーはsetup失敗のログが出るだけで、他のセンサーは動く。
+
+packages:
+  base: !include irhub-base.yaml
+  network: !include irhub-network-wifi.yaml
+  #bme280: !include irhub-bme280.yaml
+  sht4x: !include irhub-sht4x.yaml
+  aht2x: !include irhub-aht2x.yaml
+
+substitutions:
+  name: "irhub-node-c6-calib"
+  friendly_name: "IRHub C6 Calib"
+  # XIAOのシルク上のSDA/SCL(D4/D5)。C6のストラッピングピン(GPIO4,5,8,9,15)
+  # とは被らない。
+  i2c_sda_pin: "GPIO22"  # D4
+  i2c_scl_pin: "GPIO23"  # D5
+
+esp32:
+  board: seeed_xiao_esp32c6
+  framework:
+    type: esp-idf

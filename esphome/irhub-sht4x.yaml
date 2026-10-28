@@ -1,0 +1,31 @@
+# IRHub Sensirion SHT4x(SHT40/SHT40I等、温湿度)。I2Cバス(irhub-i2c.yaml)込み。
+# ESPHome標準のsht4xコンポーネントを使う(自前実装は不要)。
+# 個体補正(filters)はBME280と同様、ノード側から`- id: !extend sht40_1`(2個目なら`sht40_2`)で足す。
+
+packages:
+  i2c: !include irhub-i2c.yaml
+
+# 同じノードに複数個載せる場合はirhub-bme280.yamlと同様、`vars:`で番号と
+# アドレスを変えてincludeする(SHT40は0x44/0x45の2種しか無いので最大2個):
+#   sht4x_2: !include
+#     file: irhub-sht4x.yaml
+#     vars: {sht40_n: "2", sht40_address: "0x45"}
+substitutions:
+  sht40_n: "1"
+  sht40_address: "0x44"
+
+sensor:
+  # デフォルトアドレス0x44(SHT40-AD1B/SHT40I-AD1B等。-BD1Bは0x45なので
+  # 型番末尾を確認して合わせること)。BME280(0x76)・AHT25(0x38)とは被らない。
+  # 内蔵ヒーター(結露除去用)はheater_max_dutyのデフォルト0で無効のまま。
+  # 有効にすると自己発熱で温度が上振れするので、校正用途では使わない。
+  - platform: sht4x
+    id: sht40_${sht40_n}
+    address: ${sht40_address}
+    update_interval: 60s
+    temperature:
+      name: "SHT40 Temperature ${sht40_n}"
+      id: sht40_temperature_${sht40_n}
+    humidity:
+      name: "SHT40 Humidity ${sht40_n}"
+      id: sht40_humidity_${sht40_n}

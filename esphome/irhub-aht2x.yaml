@@ -1,0 +1,28 @@
+# IRHub ASAIR AHT2x(AHT20/AHT25、温湿度)。I2Cバス(irhub-i2c.yaml)込み。
+# ESPHome標準のaht10コンポーネントのvariant: AHT20を使う(自前実装は不要)。
+# AHT25はAHT20とコマンド互換(AHT20を樹脂ケース+ピンヘッダにしたモジュール)。
+# 個体補正(filters)はBME280と同様、ノード側から`- id: !extend aht25_1`で足す。
+
+packages:
+  i2c: !include irhub-i2c.yaml
+
+# AHT25はアドレス0x38固定なので、1本のI2Cバスには1個しか載らない。
+# それでもname:/id:の番号だけはirhub-bme280.yamlと揃えて`vars:`で変えられる
+# ようにしてある(別バスやI2Cマルチプレクサ経由で2個目を足す場合用):
+#   vars: {aht25_n: "2"}
+substitutions:
+  aht25_n: "1"
+
+sensor:
+  # アドレスは0x38固定(変更不可)。BME280(0x76)・SHT40(0x44)とは被らない。
+  - platform: aht10
+    variant: AHT20
+    id: aht25_${aht25_n}
+    address: 0x38
+    update_interval: 60s
+    temperature:
+      name: "AHT25 Temperature ${aht25_n}"
+      id: aht25_temperature_${aht25_n}
+    humidity:
+      name: "AHT25 Humidity ${aht25_n}"
+      id: aht25_humidity_${aht25_n}

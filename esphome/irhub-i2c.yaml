@@ -1,0 +1,19 @@
+# IRHub I2Cバス。各I2Cセンサーパッケージ(irhub-bme280.yaml / irhub-sht4x.yaml /
+# irhub-aht2x.yaml)からincludeされる。複数のセンサーパッケージが同じこの
+# ファイルをincludeしても、マージで1本のバスにまとまる。
+
+substitutions:
+  i2c_sda_pin: "GPIO6"
+  i2c_scl_pin: "GPIO7"
+
+# --- I2Cセンサ拡張 ---
+# 1本のバス(SDA/SCL 2ピン)にアドレスさえ被らなければ何個でもデバイスを
+# 追加できる。センサーを増やす場合は下の`sensor:`にプラットフォームを
+# 追記していくだけでよい(ピンは増えない)。
+# SPIデバイスを追加したい場合は別途`spi:`を宣言し、CLK/MOSI/MISOは共有
+# できるが、デバイスごとにCS(チップセレクト)ピンが1本ずつ追加で必要になる
+# 点がI2Cと異なる(ピンの余裕と要相談)。
+i2c:
+  sda: ${i2c_sda_pin}
+  scl: ${i2c_scl_pin}
+  scan: true  # 起動時ログにバス上の全デバイスアドレスを列挙(配線確認用)

@@ -1,23 +1,22 @@
-# IRHub I2Cバス + BME280(温湿度気圧)。
-# irhub-common.yaml や irhub-node-c6-desk.yaml からincludeされる。
+# IRHub BME280(温湿度気圧)。I2Cバス(irhub-i2c.yaml)込み。
+# irhub-common.yaml / irhub-node-c6-desk.yaml / irhub-node-c6-calib.yaml からincludeされる。
 # ADT7410等、他のI2Cセンサーを足すノードは include元の`sensor:`に追記すればよい
 # (sensor:リストはパッケージ間で連結される)。
 
-substitutions:
-  i2c_sda_pin: "GPIO6"
-  i2c_scl_pin: "GPIO7"
+packages:
+  i2c: !include irhub-i2c.yaml
 
-# --- I2Cセンサ拡張 ---
-# 1本のバス(SDA/SCL 2ピン)にアドレスさえ被らなければ何個でもデバイスを
-# 追加できる。センサーを増やす場合は下の`sensor:`にプラットフォームを
-# 追記していくだけでよい(ピンは増えない)。
-# SPIデバイスを追加したい場合は別途`spi:`を宣言し、CLK/MOSI/MISOは共有
-# できるが、デバイスごとにCS(チップセレクト)ピンが1本ずつ追加で必要になる
-# 点がI2Cと異なる(ピンの余裕と要相談)。
-i2c:
-  sda: ${i2c_sda_pin}
-  scl: ${i2c_scl_pin}
-  scan: true  # 起動時ログにバス上の全デバイスアドレスを列挙(配線確認用)
+# 同じノードに複数個載せる場合は、2個目以降を`!include`の`vars:`で
+# 番号(とアドレス)を変えてincludeする(name:/id:の末尾の番号が変わるので
+# HA側のunique_idも衝突しない)。省略時は下のデフォルト(1個目)になる:
+#   packages:
+#     bme280: !include irhub-bme280.yaml               # bme280_1, 0x76
+#     bme280_2: !include
+#       file: irhub-bme280.yaml
+#       vars: {bme280_n: "2", bme280_address: "0x77"}  # bme280_2, 0x77
+substitutions:
+  bme280_n: "1"
+  bme280_address: "0x76"
 
 sensor:
   # Bosch BME280 (温度・湿度・気圧、ESPHome標準コンポーネント)。
@@ -33,19 +32,19 @@ sensor:
   #     bme280_base: VERBOSE
 
   - platform: bme280_i2c
-    address: 0x76
+    address: ${bme280_address}
     update_interval: 60s
     # ノード側から`- id: !extend bme280_1`で補正(filters)を足すためのid。
     # 補正値はセンサー個体ごとに違うので、このパッケージには書かない。
     # (filters:はリストなので!extendでも上書きではなく連結になる。ここで
     #  空にしておけば、ノード側に書いたものだけが効く)
-    id: bme280_1
+    id: bme280_${bme280_n}
     temperature:
-      name: "BME280 Temperature 1"
-      id: bme280_temperature_1
+      name: "BME280 Temperature ${bme280_n}"
+      id: bme280_temperature_${bme280_n}
     humidity:
-      name: "BME280 Humidity 1"
-      id: bme280_humidity_1
+      name: "BME280 Humidity ${bme280_n}"
+      id: bme280_humidity_${bme280_n}
     pressure:
-      name: "BME280 Pressure 1"
-      id: bme280_pressure_1
+      name: "BME280 Pressure ${bme280_n}"
+      id: bme280_pressure_${bme280_n}

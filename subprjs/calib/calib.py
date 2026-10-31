@@ -16,7 +16,9 @@
 """
 from __future__ import annotations
 
+import csv
 import sys
+from datetime import datetime
 
 import numpy as np
 import yaml
@@ -26,16 +28,19 @@ MAX_HOLD_S = 30 * 60  # これ以上記録が無ければ欠測とみなす
 
 
 def load_csv(path: str) -> dict[str, tuple[np.ndarray, np.ndarray]]:
-    raw = np.genfromtxt(path, delimiter=",", names=True, dtype=None, encoding="utf-8")
+    pts: dict[str, list[tuple[float, float]]] = {}
+    with open(path, newline="") as f:
+        for row in csv.DictReader(f):
+            t = datetime.fromisoformat(row["last_changed"].replace("Z", "+00:00")).timestamp()
+            try:
+                v = float(row["state"])
+            except ValueError:
+                v = np.nan  # unavailable/unknown は NaN (=そこから欠測)
+            pts.setdefault(row["entity_id"], []).append((t, v))
     out = {}
-    for ent in np.unique(raw["entity_id"]):
-        rows = raw[raw["entity_id"] == ent]
-        t = np.array([np.datetime64(s.replace("Z", "")) for s in rows["last_changed"]], dtype="datetime64[ms]")
-        t = t.astype("int64") / 1000.0
-        # unavailable/unknown は NaN (=そこから欠測)
-        v = np.array([float(s) if s.replace(".", "", 1).lstrip("-").isdigit() else np.nan for s in rows["state"]])
-        order = np.argsort(t)
-        out[str(ent)] = (t[order], v[order])
+    for ent, p in pts.items():
+        a = np.array(sorted(p))
+        out[ent] = (a[:, 0], a[:, 1])
     return out
 
 

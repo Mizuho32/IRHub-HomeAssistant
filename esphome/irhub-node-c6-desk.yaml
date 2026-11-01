@@ -32,7 +32,14 @@ sensor:
       filters:
         # 表示値 = センサ値 + offset。irhub-common.yaml側の個体の値を
         # 暫定で流用しているだけ(この個体では未実測)。
-        - offset: 0.7
+        #- offset: 0.7
+        #- offset: 0.432
+        - calibrate_linear:
+            datapoints:
+              - 17.56 -> 18.595
+              - 20.19 -> 20.639
+        #      - 19.93 -> 20.586
+        #      - 24.33 -> 24.585
     humidity:
       filters:
         # 2026-10-28実測(左: BME280表示値 -> 右: 基準の真値)。2点から線形補正。

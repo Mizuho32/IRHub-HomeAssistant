@@ -27,3 +27,29 @@ esp32:
   board: seeed_xiao_esp32c6
   framework:
     type: esp-idf
+sensor:
+  - id: !extend sht40_1
+    temperature:
+      filters:
+        - offset: -1.071
+    humidity:
+      filters:
+        - calibrate_linear:
+            #- 66.9 -> 61     # BME280が64.9%と表示した時、真値(基準)は61%だった。offset乗ってないか注意
+            - 37.65 -> 33
+            - 69.98 -> 75.5
+
+
+  - id: !extend aht25_1
+    temperature:
+      filters:
+        - offset: -0.101
+        #- calibrate_linear:
+        #    datapoints:
+        #      - 21.45 -> 21.502
+        #      - 24.48 -> 24.955
+    humidity:
+      filters:
+        - calibrate_linear:
+            - 34.0  -> 33
+            - 71.89 -> 75.5
